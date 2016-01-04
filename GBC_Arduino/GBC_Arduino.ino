@@ -3,11 +3,12 @@
     www.frag-duino.de
 */
 
-// Imports for the display:
+// Imports for the display and the controller:
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <NESpad.h>
 
 // Protocol:
 const char TYPE_GAIN = 'G';
@@ -47,7 +48,6 @@ const int OLED_CS = 7;    // > CS
 // Hardware Uno MOSI: 11 > D1
 // Hardware Uno MISO: 12 > unused
 // Hardware Uno SCK:  13 > D0
-Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
 
 // Constants
 const int COLORDEPTH_8BIT = 8;
@@ -57,7 +57,7 @@ const int RESOLUTION_32PX = 3;
 const int MODE_REGULAR = 0;
 const int MODE_TEST = 1;
 const int offset_row = 16;
-const int offset_column = 64;
+const int offset_column = 96;
 const unsigned long INTERVAL_READY = 500;
 
 /*
@@ -93,47 +93,50 @@ unsigned int set_offset  = 0;  // Offset=0V
 unsigned int set_z    = 2;  // Z="10"
 
 // Variables:
+Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
+NESpad nintendo = NESpad(A4, A5, A6);
 byte outBuffer[128];
 byte temp;
 char c;
 String input, tempString;
 boolean take_photo = false;
+byte state_button;
 
 void setConfig() {
   // Print the current settings
-  Serial.println("Settings:");
-  Serial.print("Mode=");
-  Serial.print(set_mode);
-  Serial.print(" set_colordepth=");
-  Serial.print(set_colordepth);
-  Serial.print(" set_resolution=");
-  Serial.print(set_resolution);
-  Serial.print(" Gain=");
-  Serial.print(set_gain);
-  Serial.print(" VH=");
-  Serial.print(set_vh);
-  Serial.print(" N=");
-  Serial.print(set_n);
-  Serial.print(" C1=");
-  Serial.print(set_c1);
-  Serial.print(" C0=");
-  Serial.print(set_c0);
-  Serial.print(" P=");
-  Serial.print(set_p);
-  Serial.print(" M=");
-  Serial.print(set_m);
-  Serial.print(" X=");
-  Serial.print(set_x);
-  Serial.print(" Vref=");
-  Serial.print(set_vref);
-  Serial.print(" I=");
-  Serial.print(set_i);
-  Serial.print(" Edge=");
-  Serial.print(set_edge);
-  Serial.print(" Offset=");
-  Serial.print(set_offset);
-  Serial.print(" Z=");
-  Serial.println(set_z);
+  //   Serial.println("Settings:");
+  // Serial.print("Mode=");
+  // Serial.print(set_mode);
+  // Serial.print(" set_colordepth=");
+  // Serial.print(set_colordepth);
+  // Serial.print(" set_resolution=");
+  // Serial.print(set_resolution);
+  // Serial.print(" Gain=");
+  // Serial.print(set_gain);
+  // Serial.print(" VH=");
+  // Serial.print(set_vh);
+  // Serial.print(" N=");
+  // Serial.print(set_n);
+  // Serial.print(" C1=");
+  // Serial.print(set_c1);
+  // Serial.print(" C0=");
+  // Serial.print(set_c0);
+  // Serial.print(" P=");
+  // Serial.print(set_p);
+  // Serial.print(" M=");
+  // Serial.print(set_m);
+  // Serial.print(" X=");
+  // Serial.print(set_x);
+  // Serial.print(" Vref=");
+  // Serial.print(set_vref);
+  // Serial.print(" I=");
+  // Serial.print(set_i);
+  // Serial.print(" Edge=");
+  // Serial.print(set_edge);
+  // Serial.print(" Offset=");
+  // Serial.print(set_offset);
+  // Serial.print(" Z=");
+  // Serial.println(set_z);
 
   reg1 = set_gain | (set_vh << 5) | (set_n << 7);
   reg2 = set_c1;
@@ -249,7 +252,7 @@ void loop() {
     }
   }
 
-  if (take_photo) {
+  if (!take_photo) {
     display.clearDisplay();
 
     // Reset camera
@@ -378,12 +381,73 @@ void loop() {
       }
     }
 
+    // get the state from the buttons
+    state_button = nintendo.buttons();
+
+    // Change the values:
+    if (state_button & NES_SELECT)
+      if (set_mode == MODE_TEST )
+        set_mode = MODE_REGULAR;
+      else
+        set_mode = MODE_TEST;
+
+    // Switch resolution/colordepth:
+    if (state_button & NES_START)
+      if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 1
+        set_colordepth = COLORDEPTH_8BIT;
+        set_resolution = RESOLUTION_32PX;
+      } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 2
+        set_colordepth = COLORDEPTH_8BIT;
+        set_resolution = RESOLUTION_128PX;
+      } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 3
+        set_colordepth = COLORDEPTH_2BIT;
+        set_resolution = RESOLUTION_128PX;
+      }
+
+    // Up/Down: C1
+    if (state_button & NES_UP)
+      set_c1++;
+    if (state_button & NES_DOWN)
+      set_c1--;
+
+    // Left/Right: Gain
+    if (state_button & NES_LEFT)
+      set_gain--;
+    if (state_button & NES_RIGHT)
+      set_gain++;
+
+    // Output Selected:
+    display.setCursor(0, 0);
+    tempString = "Buttons: ";
+    if (state_button & NES_A)
+      tempString += "A";
+    if (state_button & NES_B)
+      tempString += "B";
+    if (state_button & NES_SELECT)
+      tempString += "Se";
+    if (state_button & NES_START)
+      tempString += "St";
+    if (state_button & NES_UP)
+      tempString += "U";
+    if (state_button & NES_DOWN)
+      tempString += "D";
+    if (state_button & NES_LEFT)
+      tempString += "L";
+    if (state_button & NES_RIGHT)
+      tempString += "R";
+    display.println(tempString);
+
     display.setCursor(0, 16);
     tempString = "Mode:";
     if (set_mode == MODE_REGULAR)
       tempString += "Reg";
     else
       tempString += "Test";
+    tempString += "\r\nColor:";
+    if (set_colordepth == COLORDEPTH_2BIT)
+      tempString += "2Bit";
+    else
+      tempString += "8Bit";
     tempString += "\r\nRes:";
     if (set_resolution == RESOLUTION_128PX)
       tempString += "128x128";
@@ -397,6 +461,8 @@ void loop() {
     tempString += set_gain;
     display.println(tempString);
     display.display();
+
+    setConfig();
 
     // Send end-bytes
     if (take_photo) {
@@ -503,12 +569,3 @@ void xck() {
   digitalWrite(pin_xck, HIGH);
   digitalWrite(pin_xck, LOW);
 }
-
-void doRandomOutput(int row, int column) {
-  outBuffer[column] = random(256);
-  if (outBuffer[column] > 127)
-    display.drawPixel(column + offset_column, row + offset_row, WHITE);
-  else
-    display.drawPixel(column + offset_column, row + offset_row , BLACK);
-}
-
