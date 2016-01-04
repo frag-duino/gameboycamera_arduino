@@ -3,6 +3,12 @@
     www.frag-duino.de
 */
 
+// Imports for the display:
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
 // Protocol:
 const char TYPE_GAIN = 'G';
 const char TYPE_VH = 'H';
@@ -32,6 +38,16 @@ const int pin_reset = 10;
 const int pin_load = 11;
 const int pin_sin = 12;
 const int pin_start = 13;
+// Hardware  SPI for OLED-Display:
+const int OLED_RESET = 5; // > RES
+const int OLED_DC = 6;    // > DC
+const int OLED_CS = 7;    // > CS
+// Hardware Mega MOSI: 51 > D1
+// Hardware Mega SCK:  52 > D0
+// Hardware Uno MOSI: 11 > D1
+// Hardware Uno MISO: 12 > unused
+// Hardware Uno SCK:  13 > D0
+Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
 
 // Constants
 const int COLORDEPTH_8BIT = 8;
@@ -40,7 +56,8 @@ const int RESOLUTION_128PX = 1;
 const int RESOLUTION_32PX = 3;
 const int MODE_REGULAR = 0;
 const int MODE_TEST = 1;
-
+const int offset_row = 16;
+const int offset_column = 64;
 const unsigned long INTERVAL_READY = 500;
 
 /*
@@ -64,8 +81,8 @@ byte reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg0;
 unsigned int set_gain = 0;  // Gain=0
 unsigned int set_vh   = 3;  // VH=3
 unsigned int set_n    = 0;  // N=1
-unsigned int set_c1   = 23; // C1=23
-unsigned int set_c0   = 27; // C0=27
+unsigned int set_c1   = 8; // C1=8
+unsigned int set_c0   = 0; // C0=0
 unsigned int set_p    = 1;  // P=1
 unsigned int set_m    = 0;  // M=0
 unsigned int set_x    = 1;  // X=1
@@ -77,13 +94,10 @@ unsigned int set_z    = 2;  // Z="10"
 
 // Variables:
 byte outBuffer[128];
-byte data;
-unsigned int temp;
+byte temp;
 char c;
-String input;
+String input, tempString;
 boolean take_photo = false;
-// unsigned long last_send_ready = 0;
-// unsigned long currentMillis = 0;
 
 void setConfig() {
   // Print the current settings
@@ -151,8 +165,9 @@ void setConfig() {
 
 void setup() {
   // Initialize Serial
-  // Serial.begin(115200);
-  Serial.begin(9600);
+  // Serial.begin(9600);
+  Serial.begin(115200);
+  // Serial.begin(250000);
   delay(1000);
   setConfig(); // Set the config
   randomSeed(analogRead(0));
@@ -165,17 +180,19 @@ void setup() {
   pinMode(pin_sin, OUTPUT);
   pinMode(pin_start, OUTPUT);
 
+  // Initialize display
+  display.begin(SSD1306_SWITCHCAPVCC);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("Hello Gameboycamera!");
+  display.display();
+
   Serial.println("Initialized");
 }
 
 void loop() {
-  // currentMillis = millis();
-
-  // Send ready every x seconds
-  //if ((!take_photo) && (last_send_ready + INTERVAL_READY < currentMillis)) {
-  //  Serial.println("!READY!");
-  //  last_send_ready = currentMillis;
-  //}
 
   if (Serial.available() > 0) {
     c = Serial.read();
@@ -233,6 +250,8 @@ void loop() {
   }
 
   if (take_photo) {
+    display.clearDisplay();
+
     // Reset camera
     // Serial.println("Reset camera:");
     digitalWrite(pin_reset, LOW); // RESET -> Low
@@ -270,73 +289,26 @@ void loop() {
     if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
       for (int row = 0; row < 128; row++) {
         for (int column = 0; column < 32; column++) {
-          if (set_mode == MODE_TEST) {
-            outBuffer[column] = random(256);
-          } else {
-            for (int pixel = 0; pixel < 4; pixel++) {
-              temp = analogRead(pin_vout);
+          for (int pixel = 0; pixel < 4; pixel++) {
 
-              if (temp < 256)
-                data = B00000000;
-              else if (temp < 512)
-                data = B00000001;
-              else if (temp < 768)
-                data = B00000010;
+            if (set_mode == MODE_REGULAR) // Regular mode, read voltage
+              temp = analogRead(pin_vout) / 4;
+            else // Testmode
+              temp = random(256);
+
+            if (pixel == 0)
+              outBuffer[column] = temp;
+            else
+              outBuffer[column] = (outBuffer[column] << 2) | temp;
+
+            // Print it 1:4 on the display:
+            if (row % 4 == 0 && pixel == 0) // Every fourth row/pixel
+            {
+              if (temp > 127)
+                display.drawPixel(column + offset_column, row / 4 + offset_row, WHITE);
               else
-                data = B00000011;
-
-              if (pixel == 0)
-                outBuffer[column] = data;
-              else
-                outBuffer[column] = (outBuffer[column] << 2) | data;
-
-              // Clock to get the next one:
-              digitalWrite(pin_xck, LOW);
-              digitalWrite(pin_xck, HIGH);
+                display.drawPixel(column + offset_column, row / 4 + offset_row , BLACK);
             }
-          }
-        }
-
-        // Send complete row:
-        Serial.write(outBuffer, 32); // Send complete buffer
-      }
-    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
-      for (int row = 0; row < 32; row++) {
-        for (int column = 0; column < 32; column++) {
-          if (set_mode == MODE_TEST) {
-            outBuffer[column] = random(256);
-          }
-          else
-          {
-            // Read current voltage
-            data = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
-            outBuffer[column] = data;
-
-            // Clock 4 times to get the fourth next one:
-            digitalWrite(pin_xck, LOW);
-            digitalWrite(pin_xck, HIGH);
-            digitalWrite(pin_xck, LOW);
-            digitalWrite(pin_xck, HIGH);
-            digitalWrite(pin_xck, LOW);
-            digitalWrite(pin_xck, HIGH);
-            digitalWrite(pin_xck, LOW);
-            digitalWrite(pin_xck, HIGH);
-          }
-        }
-
-        // Send row:
-        Serial.write(outBuffer, 32); // Send complete buffer
-      }
-    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
-      for (int row = 0; row < 128; row++) {
-        for (int column = 0; column < 128; column++) {
-          if (set_mode == MODE_TEST) {
-            outBuffer[column] = random(256);
-          }
-          else {
-            // Read current voltage
-            data = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
-            outBuffer[column] = data;
 
             // Clock to get the next one:
             digitalWrite(pin_xck, LOW);
@@ -344,19 +316,97 @@ void loop() {
           }
         }
 
+        // Send complete row:
+        if (take_photo)
+          Serial.write(outBuffer, 32); // Send complete buffer
+      }
+    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
+      for (int row = 0; row < 32; row++) {
+        for (int column = 0; column < 32; column++) {
+          if (set_mode == MODE_REGULAR) // Regular mode, read voltage
+            outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
+          else // Testmode
+            outBuffer[column] = random(256);
+
+          // Print it 1:1 on the display:
+          if (outBuffer[column] > 127)
+            display.drawPixel(column + offset_column, row + offset_row, WHITE);
+          else
+            display.drawPixel(column + offset_column, row + offset_row , BLACK);
+
+          // Clock 4 times to get the fourth next one:
+          digitalWrite(pin_xck, LOW);
+          digitalWrite(pin_xck, HIGH);
+          digitalWrite(pin_xck, LOW);
+          digitalWrite(pin_xck, HIGH);
+          digitalWrite(pin_xck, LOW);
+          digitalWrite(pin_xck, HIGH);
+          digitalWrite(pin_xck, LOW);
+          digitalWrite(pin_xck, HIGH);
+        }
+
         // Send row:
-        Serial.write(outBuffer, 128); // Send complete buffer
+        if (take_photo)
+          Serial.write(outBuffer, 32); // Send complete buffer
+      }
+    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
+      for (int row = 0; row < 128; row++) {
+        for (int column = 0; column < 128; column++) {
+
+          if (set_mode == MODE_REGULAR) // Regular mode, read voltage
+            outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
+          else // Test mode
+            outBuffer[column] = random(256);
+
+          // Print it 1:4 on the display:
+          if (row % 4 == 0 && column % 4 == 0) // Every fourth row/column
+          {
+            if (outBuffer[column] > 127)
+              display.drawPixel(column / 4 + offset_column, row / 4 + offset_row, WHITE);
+            else
+              display.drawPixel(column / 4 + offset_column, row / 4 + offset_row , BLACK);
+          }
+
+          // Clock to get the next one:
+          digitalWrite(pin_xck, LOW);
+          digitalWrite(pin_xck, HIGH);
+        }
+
+        // Send row:
+        if (take_photo)
+          Serial.write(outBuffer, 128); // Send complete buffer
       }
     }
 
+    display.setCursor(0, 16);
+    tempString = "Mode:";
+    if (set_mode == MODE_REGULAR)
+      tempString += "Reg";
+    else
+      tempString += "Test";
+    tempString += "\r\nRes:";
+    if (set_resolution == RESOLUTION_128PX)
+      tempString += "128x128";
+    else
+      tempString += "32x32";
+    tempString += "\r\nC0:";
+    tempString += set_c0;
+    tempString += "\r\nC1:";
+    tempString += set_c1;
+    tempString += "\r\nGain:";
+    tempString += set_gain;
+    display.println(tempString);
+    display.display();
+
     // Send end-bytes
-    Serial.print(B00110011);
-    Serial.print(B00110011);
-    Serial.print(B00110011);
-    Serial.println("!END!");
-    Serial.println("Next");
-    // last_send_ready = 0; // Force to send the next Ready
-    take_photo = false;
+    if (take_photo) {
+      Serial.print(B00110011);
+      Serial.print(B00110011);
+      Serial.print(B00110011);
+      Serial.println("!END!");
+      Serial.println("Next");
+      take_photo = false;
+    }
   }
 }
 
@@ -452,5 +502,13 @@ void setReg( unsigned char adr, unsigned char data )
 void xck() {
   digitalWrite(pin_xck, HIGH);
   digitalWrite(pin_xck, LOW);
+}
+
+void doRandomOutput(int row, int column) {
+  outBuffer[column] = random(256);
+  if (outBuffer[column] > 127)
+    display.drawPixel(column + offset_column, row + offset_row, WHITE);
+  else
+    display.drawPixel(column + offset_column, row + offset_row , BLACK);
 }
 
