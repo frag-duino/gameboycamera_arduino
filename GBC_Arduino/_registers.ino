@@ -71,21 +71,21 @@ void setReg( unsigned char adr, unsigned char data )
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((adr & 0x02) == 0x02)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((adr & 0x01) == 0x01)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   // Datenübertragung (8bit)
   if ((data & 0x80) == 0x80)
@@ -93,49 +93,49 @@ void setReg( unsigned char adr, unsigned char data )
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x40) == 0x40)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x20) == 0x20)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x10) == 0x10)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x08) == 0x08)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x04) == 0x04)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x02) == 0x02)
     digitalWrite(pin_sin, HIGH);
   else
     digitalWrite(pin_sin, LOW);
 
-  xck();
+  xckHIGHTtoLOW();
 
   if ((data & 0x01) == 0x01)
     digitalWrite(pin_sin, HIGH);
@@ -151,7 +151,16 @@ void setReg( unsigned char adr, unsigned char data )
 }
 
 // Send some clocks:
-void xck() {
-  digitalWrite(pin_xck, HIGH);
-  digitalWrite(pin_xck, LOW);
+void xckHIGHTtoLOW() { 
+  // digitalWrite(pin_xck, HIGH);
+  // digitalWrite(pin_xck, LOW);
+  PORTH |= _BV(PH6);
+  PORTH &= ~_BV(PH6);
+}
+
+void xckLOWtoHIGH() {
+  // digitalWrite(pin_xck, LOW);
+  // digitalWrite(pin_xck, HIGH);
+  PORTH &= ~_BV(PH6);
+  PORTH |= _BV(PH6);
 }

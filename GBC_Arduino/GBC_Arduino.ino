@@ -34,7 +34,7 @@ const char COMMAND_MODE = 'F';
 // Pins
 const int pin_vout = A3;
 const int pin_read = 8;
-const int pin_xck = 9;
+const int pin_xck = 9; // PH6 on Mega
 const int pin_reset = 10;
 const int pin_load = 11;
 const int pin_sin = 12;
@@ -195,10 +195,10 @@ void loop() {
     // Reset camera
     // Serial.println("Reset camera:");
     digitalWrite(pin_reset, LOW); // RESET -> Low
-    xck();
-    xck();
+    xckHIGHTtoLOW();
+    xckHIGHTtoLOW();
     digitalWrite(pin_reset, HIGH); // RESET -> High
-    xck();
+    xckHIGHTtoLOW();
 
     // Set the registers:
     // Serial.println("Set the registers");
@@ -213,16 +213,16 @@ void loop() {
 
     // Starting the camera:
     // Serial.println("Starting camera");
-    xck();
+    xckHIGHTtoLOW();
     digitalWrite(pin_start, HIGH); // Start High -> Kamerastart
     digitalWrite(pin_xck, HIGH);
     digitalWrite(pin_start, LOW); // Start L
-    xck();
+    xckHIGHTtoLOW();
 
     // Wait until the images comes:
     // Serial.println("Waiting for image:");
     while (digitalRead(pin_read) == LOW)  // READ signal
-      xck();
+      xckHIGHTtoLOW();
 
     Serial.println("!IMAGE!");
 
@@ -250,16 +250,14 @@ void loop() {
                 display.drawPixel(column + offset_column, row / 4 + offset_row , BLACK);
             }
 
-            // Clock to get the next one:
-            digitalWrite(pin_xck, LOW);
-            digitalWrite(pin_xck, HIGH);
+            xckLOWtoHIGH(); // Clock to get the next one
           }
         }
 
         // Send complete row:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
-        if (row % 64 == 0)
+        if (row + 1 % 64 == 0)
           outputConfig();// Print the current config on the display
       }
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
@@ -276,21 +274,14 @@ void loop() {
           else
             display.drawPixel(column + offset_column, row + offset_row , BLACK);
 
-          // Clock 4 times to get the fourth next one:
-          digitalWrite(pin_xck, LOW);
-          digitalWrite(pin_xck, HIGH);
-          digitalWrite(pin_xck, LOW);
-          digitalWrite(pin_xck, HIGH);
-          digitalWrite(pin_xck, LOW);
-          digitalWrite(pin_xck, HIGH);
-          digitalWrite(pin_xck, LOW);
-          digitalWrite(pin_xck, HIGH);
+          for (int i = 0; i < 4; i++) // 4times=128/4
+            xckLOWtoHIGH(); // Clock to get the next one
         }
 
         // Send row:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
-        if (row % 16 == 0)
+        if (row + 1 % 16 == 0)
           outputConfig();// Print the current config on the display
       }
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
@@ -311,15 +302,13 @@ void loop() {
               display.drawPixel(column / 4 + offset_column, row / 4 + offset_row , BLACK);
           }
 
-          // Clock to get the next one:
-          digitalWrite(pin_xck, LOW);
-          digitalWrite(pin_xck, HIGH);
+          xckLOWtoHIGH(); // Clock to get the next one
         }
 
         // Send row:
         if (take_photo)
           Serial.write(outBuffer, 128); // Send complete buffer
-        if (row % 64 == 0)
+        if (row + 1 % 64 == 0)
           outputConfig();// Print the current config on the display
       }
     }
