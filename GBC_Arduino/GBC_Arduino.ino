@@ -7,7 +7,7 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_ST7735.h> // Hardware-specific library
 #include <NESpad.h>
 
 // Protocol:
@@ -40,14 +40,12 @@ const int pin_load = 11;
 const int pin_sin = 12;
 const int pin_start = 13;
 // Hardware  SPI for OLED-Display:
-const int OLED_RESET = 5; // > RES
-const int OLED_DC = 6;    // > DC
-const int OLED_CS = 7;    // > CS
-// Hardware Mega MOSI: 51 > D1
-// Hardware Mega SCK:  52 > D0
-// Hardware Uno MOSI: 11 > D1
-// Hardware Uno MISO: 12 > unused
-// Hardware Uno SCK:  13 > D0
+#define TFT_RST    5
+#define TFT_DC     6
+#define TFT_CS     7
+// Hardware Mega MOSI: 51 > SDA
+// Hardware Mega SCK:  52 > SCL
+// Backlight is conncted with 220 Ohm (better: 120) to 5V
 
 // Constants
 const int COLORDEPTH_8BIT = 8;
@@ -56,8 +54,8 @@ const int RESOLUTION_128PX = 1;
 const int RESOLUTION_32PX = 3;
 const int MODE_REGULAR = 0;
 const int MODE_TEST = 1;
-const int offset_row = 16;
-const int offset_column = 96;
+const int offset_row = 0;
+const int offset_column = 0;
 const unsigned long INTERVAL_READY = 500;
 
 /*
@@ -93,7 +91,7 @@ unsigned int set_offset  = 0;  // Offset=0V
 unsigned int set_z    = 2;  // Z="10"
 
 // Variables:
-Adafruit_SSD1306 display(OLED_DC, OLED_RESET, OLED_CS);
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 NESpad nintendo = NESpad(A4, A5, A6);
 byte outBuffer[128];
 byte temp;
@@ -102,6 +100,7 @@ String input, tempString;
 boolean take_photo = false;
 byte state_button;
 boolean enable_enhanced_mode = false;
+int randomValue = 0;
 
 void setup() {
   // Initialize Serial
@@ -121,13 +120,13 @@ void setup() {
   pinMode(pin_start, OUTPUT);
 
   // Initialize display
-  display.begin(SSD1306_SWITCHCAPVCC);
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Hello Gameboycamera!");
-  display.display();
+  tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+  tft.fillScreen(ST7735_BLACK);
+  tft.setCursor(0, 0);
+  tft.setTextColor(ST7735_BLUE);
+  tft.setTextWrap(true);
+  tft.print("GameboyCamera initialized");
+
 
   Serial.println("Initialized");
 }
@@ -190,7 +189,6 @@ void loop() {
   }
 
   if (!take_photo) { // TODO: ändern
-    // display.clearDisplay();
 
     // Reset camera
     // Serial.println("Reset camera:");
@@ -228,31 +226,34 @@ void loop() {
 
     if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
       for (int row = 0; row < 128; row++) {
+        Serial.print(millis());
         for (int column = 0; column < 32; column++) {
           for (int pixel = 0; pixel < 4; pixel++) {
 
             if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-              temp = analogRead(pin_vout) / 4;
+              temp = analogRead(pin_vout) / 4; // --> make it a 8 Bit value (0-1024 --> 0-255)
             else // Testmode
-              temp = random(256);
+              temp = getNextValue(); // Returns a 8 Bit value (0-255)
+
+
+            temp = temp / 64; // make it a 2 Bit value (0-255 --> 0-3)
 
             if (pixel == 0)
-              outBuffer[column] = temp;
+              outBuffer[column] = temp; // 000000xx
             else
-              outBuffer[column] = (outBuffer[column] << 2) | temp;
+              outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
-            // Print it 1:4 on the display:
-            if (row % 4 == 0 && pixel == 0) // Every fourth row/pixel
-            {
-              if (temp > 127)
-                display.drawPixel(column + offset_column, row / 4 + offset_row, WHITE);
-              else
-                display.drawPixel(column + offset_column, row / 4 + offset_row , BLACK);
-            }
+            temp *= 64; // make it 8 Bit again for printing on the display
+
+            // Print it 1:1 on the display:
+            tft.drawPixel(column * 4 + pixel + offset_column, row  + offset_row, tft.Color565(temp, temp, temp));
 
             xckLOWtoHIGH(); // Clock to get the next one
           }
         }
+
+        Serial.print("-");
+        Serial.println(millis());
 
         // Send complete row:
         if (take_photo)
@@ -263,16 +264,14 @@ void loop() {
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
       for (int row = 0; row < 32; row++) {
         for (int column = 0; column < 32; column++) {
+
           if (set_mode == MODE_REGULAR) // Regular mode, read voltage
             outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
           else // Testmode
-            outBuffer[column] = random(256);
+            outBuffer[column] = getNextValue();
 
           // Print it 1:1 on the display:
-          if (outBuffer[column] > 127)
-            display.drawPixel(column + offset_column, row + offset_row, WHITE);
-          else
-            display.drawPixel(column + offset_column, row + offset_row , BLACK);
+          tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
 
           for (int i = 0; i < 4; i++) // 4times=128/4
             xckLOWtoHIGH(); // Clock to get the next one
@@ -291,16 +290,10 @@ void loop() {
           if (set_mode == MODE_REGULAR) // Regular mode, read voltage
             outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
           else // Test mode
-            outBuffer[column] = random(256);
+            outBuffer[column] = getNextValue();
 
-          // Print it 1:4 on the display:
-          if (row % 4 == 0 && column % 4 == 0) // Every fourth row/column
-          {
-            if (outBuffer[column] > 127)
-              display.drawPixel(column / 4 + offset_column, row / 4 + offset_row, WHITE);
-            else
-              display.drawPixel(column / 4 + offset_column, row / 4 + offset_row , BLACK);
-          }
+          // Print it 1:1 on the display:
+          tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
 
           xckLOWtoHIGH(); // Clock to get the next one
         }
@@ -327,3 +320,11 @@ void loop() {
     }
   }
 }
+
+int getNextValue() {
+  randomValue++;
+  if (randomValue == 256)
+    randomValue = random(256); // get one random value for test mode
+  return randomValue;
+}
+

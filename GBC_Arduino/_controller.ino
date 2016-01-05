@@ -54,11 +54,14 @@ void checkInputs() {
 void outputConfig() {
   checkInputs();
   // Clear the values by drawing a rectangle over them:
-  display.fillRect(0, 0, display.width(), 16, 0);
-  display.fillRect(0, 16, 95, display.height(), 0);
+  //display.fillRect(0, 0, display.width(), 16, 0);
+  //display.fillRect(0, 16, 95, display.height(), 0);
 
   // Output selected Buttons:
-  display.setCursor(0, 0);
+  //display.setCursor(0, 0);
+  tft.setCursor(0, 30);
+  tft.setTextColor(ST7735_RED);
+  tft.setTextSize(1);
   tempString = "Buttons: ";
   if (state_button & NES_A)
     tempString += "A";
@@ -76,9 +79,13 @@ void outputConfig() {
     tempString += "L";
   if (state_button & NES_RIGHT)
     tempString += "R";
-  display.println(tempString);
+  tft.print(tempString);
+  //display.println(tempString);
 
-  display.setCursor(0, 16);
+  //display.setCursor(0, 16);
+  tft.setCursor(0, 30);
+  tft.setTextColor(ST7735_RED);
+  tft.setTextSize(1);
   tempString = "Mode:";
   if (set_mode == MODE_REGULAR)
     tempString += "Reg";
@@ -100,7 +107,7 @@ void outputConfig() {
   tempString += set_c1;
   tempString += "\r\nGain:";
   tempString += set_gain;
-  display.println(tempString);
-  display.display();
+  tft.print(tempString);
+  // display.display();
 }
 
