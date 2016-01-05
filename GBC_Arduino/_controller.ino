@@ -2,41 +2,61 @@ void checkInputs() {
   // get the state from the buttons
   state_button = nintendo.buttons();
 
-  // Change the values:
-  if (state_button & NES_SELECT)
-    if (set_mode == MODE_TEST )
-      set_mode = MODE_REGULAR;
-    else
-      set_mode = MODE_TEST;
+  // Check for enhanced mode:
+  if (state_button & NES_SELECT && state_button & NES_START && state_button & NES_A && state_button & NES_B)
+    enable_enhanced_mode = true;
 
   // Switch resolution/colordepth:
-  if (state_button & NES_START)
-    if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 1
+  if (enable_enhanced_mode && state_button & NES_SELECT) {
+    if (state_button & NES_START) { // 1
       set_colordepth = COLORDEPTH_8BIT;
       set_resolution = RESOLUTION_32PX;
-    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 2
+    } else if (state_button & NES_A) { // 2
       set_colordepth = COLORDEPTH_8BIT;
       set_resolution = RESOLUTION_128PX;
-    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 3
+    } else if (state_button & NES_B) { // 3
       set_colordepth = COLORDEPTH_2BIT;
       set_resolution = RESOLUTION_128PX;
     }
+    return;
+  }
+
+  // Change the values:
+  if (enable_enhanced_mode && state_button & NES_START) {
+    if (state_button & NES_A)
+      set_mode = MODE_REGULAR;
+    if (state_button & NES_B)
+      set_mode = MODE_TEST;
+    return;
+  }
 
   // Up/Down: C1
   if (state_button & NES_UP)
     set_c1++;
   if (state_button & NES_DOWN)
     set_c1--;
+  if (set_c1 > 256) // Byte is 2 Bytes length!
+    set_c1 = 0;
+  if (set_c1 == 256)
+    set_c1 = 255;
 
   // Left/Right: Gain
   if (state_button & NES_LEFT)
     set_gain--;
   if (state_button & NES_RIGHT)
     set_gain++;
+  if (set_gain > 256)
+    set_gain = 0;
+  if (set_gain == 256)
+    set_gain = 255;
 }
 
-
 void outputConfig() {
+  checkInputs();
+  // Clear the values by drawing a rectangle over them:
+  display.fillRect(0, 0, display.width(), 16, 0);
+  display.fillRect(0, 16, 95, display.height(), 0);
+
   // Output selected Buttons:
   display.setCursor(0, 0);
   tempString = "Buttons: ";

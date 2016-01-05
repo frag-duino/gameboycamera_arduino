@@ -101,6 +101,7 @@ char c;
 String input, tempString;
 boolean take_photo = false;
 byte state_button;
+boolean enable_enhanced_mode = false;
 
 void setup() {
   // Initialize Serial
@@ -188,8 +189,8 @@ void loop() {
     }
   }
 
-  if (!take_photo) {
-    display.clearDisplay();
+  if (!take_photo) { // TODO: ändern
+    // display.clearDisplay();
 
     // Reset camera
     // Serial.println("Reset camera:");
@@ -258,6 +259,8 @@ void loop() {
         // Send complete row:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
+        if (row % 64 == 0)
+          outputConfig();// Print the current config on the display
       }
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
       for (int row = 0; row < 32; row++) {
@@ -287,6 +290,8 @@ void loop() {
         // Send row:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
+        if (row % 16 == 0)
+          outputConfig();// Print the current config on the display
       }
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
       for (int row = 0; row < 128; row++) {
@@ -314,14 +319,13 @@ void loop() {
         // Send row:
         if (take_photo)
           Serial.write(outBuffer, 128); // Send complete buffer
+        if (row % 64 == 0)
+          outputConfig();// Print the current config on the display
       }
     }
-    // Check if inputs have been made:
-    checkInputs();
-    // Print the current config on the display:
-    outputConfig();
-    // Apply the current inputs to the config
-    setConfig();
+
+    outputConfig();// Print the current config on the display
+    setConfig();// Apply the current inputs to the config
 
     // Send end-bytes
     if (take_photo) {
