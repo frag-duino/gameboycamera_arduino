@@ -11,10 +11,10 @@ void checkInputs() {
     if (state_button & NES_START) { // 1
       set_colordepth = COLORDEPTH_8BIT;
       set_resolution = RESOLUTION_32PX;
-    } else if (state_button & NES_A) { // 2
+    } else if (state_button & NES_B) { // 2
       set_colordepth = COLORDEPTH_8BIT;
       set_resolution = RESOLUTION_128PX;
-    } else if (state_button & NES_B) { // 3
+    } else if (state_button & NES_A) { // 3
       set_colordepth = COLORDEPTH_2BIT;
       set_resolution = RESOLUTION_128PX;
     }

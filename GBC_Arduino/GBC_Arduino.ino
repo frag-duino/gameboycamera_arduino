@@ -225,8 +225,8 @@ void loop() {
     Serial.println("!IMAGE!");
 
     if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
+      //Serial.print(millis());
       for (int row = 0; row < 128; row++) {
-        Serial.print(millis());
         for (int column = 0; column < 32; column++) {
           for (int pixel = 0; pixel < 4; pixel++) {
 
@@ -235,15 +235,21 @@ void loop() {
             else // Testmode
               temp = getNextValue(); // Returns a 8 Bit value (0-255)
 
-
-            temp = temp / 64; // make it a 2 Bit value (0-255 --> 0-3)
+            if (temp < 64)
+              temp = 0;
+            else if (temp < 128)
+              temp = 1;
+            else if (temp < 192)
+              temp = 2;
+            else
+              temp = 3;
 
             if (pixel == 0)
               outBuffer[column] = temp; // 000000xx
             else
               outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
-            temp *= 64; // make it 8 Bit again for printing on the display
+            temp *= 85; // make it 8 Bit again for printing on the display
 
             // Print it 1:1 on the display:
             tft.drawPixel(column * 4 + pixel + offset_column, row  + offset_row, tft.Color565(temp, temp, temp));
@@ -252,15 +258,14 @@ void loop() {
           }
         }
 
-        Serial.print("-");
-        Serial.println(millis());
-
         // Send complete row:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
         if (row + 1 % 64 == 0)
           outputConfig();// Print the current config on the display
       }
+      //Serial.print("-");
+      //Serial.println(millis());
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
       for (int row = 0; row < 32; row++) {
         for (int column = 0; column < 32; column++) {
