@@ -7,8 +7,16 @@ void drawBuffer() {
     graphicPointer = 0;
     // Print the row on the screen (TODO: Optimization by higher buffer)
     tft.begin();
-    for (graphicPointer = 0; graphicPointer < size_graphicbuffer; graphicPointer++)
-      tft.drawPixelFAST(tft.Color565(graphicBuffer[graphicPointer], graphicBuffer[graphicPointer], graphicBuffer[graphicPointer]));
+    if (set_resolution == RESOLUTION_128PX) {
+      for (graphicPointer = 0; graphicPointer < size_graphicbuffer; graphicPointer++)
+        tft.drawPixelFAST(tft.Color565(graphicBuffer[graphicPointer], graphicBuffer[graphicPointer], graphicBuffer[graphicPointer]));
+    }
+    else // RESOLUTION32
+    {
+      for (int i = 0; i < 4; i++)
+        for (graphicPointer = 0; graphicPointer < size_graphicbuffer; graphicPointer++)
+          tft.drawPixelFAST(tft.Color565(graphicBuffer[graphicPointer], graphicBuffer[graphicPointer], graphicBuffer[graphicPointer]));
+    }
     tft.commit(); // Commit every row!
 
     graphicPointer = 0;

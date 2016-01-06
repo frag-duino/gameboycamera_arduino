@@ -72,7 +72,7 @@ const boolean ENABLE_DISPLAY = true;
 */
 int set_colordepth = COLORDEPTH_2BIT;
 int set_resolution = RESOLUTION_128PX;
-int set_mode = MODE_REGULAR;
+int set_mode = MODE_TEST;
 
 // Registers from datasheet
 byte reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg0;
@@ -260,10 +260,12 @@ void loop() {
 
             graphicBuffer[graphicPointer] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
             graphicPointer++;
+
             xckLOWtoHIGH(); // Clock to get the next pixel
-            drawBuffer(); // Draw the buffer
           }
         }
+
+        drawBuffer(); // Draw the buffer
 
         // Send complete row to serial:
         if (take_photo)
@@ -281,11 +283,17 @@ void loop() {
             outBuffer[column] = getNextValue();
 
           // Print it 1:1 on the display:
-          tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
+          //tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
+          for (int i = 0; i < 4; i++) {
+            graphicBuffer[graphicPointer] = outBuffer[column]; // Put it in the displaybuffer
+            graphicPointer++;
+          }
 
           for (int i = 0; i < 4; i++) // 4times=128/4
             xckLOWtoHIGH(); // Clock to get the next one
         }
+
+        drawBuffer(); // Draw the buffer
 
         // Send row:
         if (take_photo)
@@ -303,10 +311,13 @@ void loop() {
             outBuffer[column] = getNextValue();
 
           // Print it 1:1 on the display:
-          tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
+          graphicBuffer[graphicPointer] = outBuffer[column]; // Make it 8 Bit again and put it in the displaybuffer
+          graphicPointer++;
 
           xckLOWtoHIGH(); // Clock to get the next one
         }
+
+        drawBuffer(); // Draw the buffer
 
         // Send row:
         if (take_photo)
