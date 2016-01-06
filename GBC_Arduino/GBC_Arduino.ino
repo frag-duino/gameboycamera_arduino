@@ -57,6 +57,8 @@ const int MODE_TEST = 1;
 const int offset_row = 0;
 const int offset_column = 0;
 const unsigned long INTERVAL_READY = 500;
+const boolean MEASURE_TIME = false;
+const boolean ENABLE_DISPLAY = true;
 
 /*
   Set the color depth:
@@ -70,7 +72,7 @@ const unsigned long INTERVAL_READY = 500;
 */
 int set_colordepth = COLORDEPTH_2BIT;
 int set_resolution = RESOLUTION_128PX;
-int set_mode = MODE_TEST; // TODO: Ändern
+int set_mode = MODE_REGULAR;
 
 // Registers from datasheet
 byte reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg0;
@@ -94,7 +96,8 @@ unsigned int set_z    = 2;  // Z="10"
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 NESpad nintendo = NESpad(A4, A5, A6);
 byte outBuffer[128];
-byte graphicBuffer[128];
+const int size_graphicbuffer = 128;
+byte graphicBuffer[size_graphicbuffer];
 int graphicPointer;
 byte temp;
 char c;
@@ -103,7 +106,7 @@ boolean take_photo = false;
 byte state_button;
 boolean enable_enhanced_mode = false;
 int randomValue = 0;
-
+unsigned long start = 0; // For time-measurements
 
 void setup() {
   // Initialize Serial
@@ -133,7 +136,7 @@ void setup() {
   tft.initFAST();
   SPI.setClockDivider(SPI_CLOCK_DIV2);
   tft.setRotation(0);
-  tft.setAddrWindow(0, 0, 127, 159);
+  tft.setAddrWindow(0, 0, 127, 127); // Should be 127, 167
 
   Serial.println("Initialized");
 }
@@ -196,7 +199,7 @@ void loop() {
   }
 
   if (!take_photo) { // TODO: ändern
-
+    graphicPointer = 0;
     // Reset camera
     // Serial.println("Reset camera:");
     digitalWrite(pin_reset, LOW); // RESET -> Low
@@ -228,12 +231,12 @@ void loop() {
     // Serial.println("Waiting for image:");
     while (digitalRead(pin_read) == LOW)  // READ signal
       xckHIGHTtoLOW();
+    if (MEASURE_TIME)
+      start = millis();
 
     Serial.println("!IMAGE!");
-    uint16_t color; // TODO: Raus hiermit
-    if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
-      Serial.print(millis());
 
+    if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
       for (int row = 0; row < 128; row++) {
         for (int column = 0; column < 32; column++) {
           for (int pixel = 0; pixel < 4; pixel++) {
@@ -255,25 +258,19 @@ void loop() {
             else
               outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
-            graphicBuffer[column * 4 + pixel] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
+            graphicBuffer[graphicPointer] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
             graphicPointer++;
             xckLOWtoHIGH(); // Clock to get the next pixel
+            drawBuffer(); // Draw the buffer
           }
         }
-
-
-        drawBuffer(); // Draw the buffer
-        
 
         // Send complete row to serial:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
         if (row + 1 % 64 == 0)
           outputConfig();// Print the current config on the display
-
       }
-      Serial.print("-");
-      Serial.println(millis());
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
       for (int row = 0; row < 32; row++) {
         for (int column = 0; column < 32; column++) {
@@ -321,7 +318,8 @@ void loop() {
 
     outputConfig();// Print the current config on the display
     setConfig();// Apply the current inputs to the config
-
+    if (MEASURE_TIME)
+      Serial.println(millis() - start);
     // Send end-bytes
     if (take_photo) {
       Serial.print(B00110011);
@@ -330,6 +328,7 @@ void loop() {
       Serial.println("!END!");
       Serial.println("Next");
       take_photo = false;
+
     }
   }
 }
