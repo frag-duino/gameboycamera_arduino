@@ -70,7 +70,7 @@ const unsigned long INTERVAL_READY = 500;
 */
 int set_colordepth = COLORDEPTH_2BIT;
 int set_resolution = RESOLUTION_128PX;
-int set_mode = MODE_REGULAR;
+int set_mode = MODE_TEST; // TODO: Ändern
 
 // Registers from datasheet
 byte reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg0;
@@ -94,6 +94,7 @@ unsigned int set_z    = 2;  // Z="10"
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 NESpad nintendo = NESpad(A4, A5, A6);
 byte outBuffer[128];
+byte graphicBuffer[128];
 byte temp;
 char c;
 String input, tempString;
@@ -120,13 +121,17 @@ void setup() {
   pinMode(pin_start, OUTPUT);
 
   // Initialize display
-  tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
-  tft.fillScreen(ST7735_BLACK);
-  tft.setCursor(0, 0);
-  tft.setTextColor(ST7735_BLUE);
-  tft.setTextWrap(true);
-  tft.print("GameboyCamera initialized");
+  // tft.initR(INITR_BLACKTAB);   // initialize a ST7735S chip, black tab
+  //tft.fillScreen(ST7735_BLACK);
+  //tft.setCursor(0, 0);
+  //tft.setTextColor(ST7735_BLUE);
+  //tft.setTextWrap(true);
+  //tft.print("GameboyCamera initialized");
 
+  tft.initFAST();
+  SPI.setClockDivider(SPI_CLOCK_DIV2);
+  tft.setRotation(0);
+  tft.setAddrWindow(0, 0, 127, 159);
 
   Serial.println("Initialized");
 }
@@ -223,9 +228,10 @@ void loop() {
       xckHIGHTtoLOW();
 
     Serial.println("!IMAGE!");
-
+    uint16_t color; // TODO: Raus hiermit
     if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
-      //Serial.print(millis());
+      Serial.print(millis());
+
       for (int row = 0; row < 128; row++) {
         for (int column = 0; column < 32; column++) {
           for (int pixel = 0; pixel < 4; pixel++) {
@@ -250,22 +256,39 @@ void loop() {
               outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
             temp *= 85; // make it 8 Bit again for printing on the display
-
+            graphicBuffer[column * 4 + pixel] = temp;
             // Print it 1:1 on the display:
-            tft.drawPixel(column * 4 + pixel + offset_column, row  + offset_row, tft.Color565(temp, temp, temp));
+            //tft.drawPixelFAST(column * 4 + pixel + offset_column, row  + offset_row, tft.Color565(temp, temp, temp));
+            // tft.fillRect(column * 4 + pixel + offset_column, row  + offset_row, 1, 1, tft.Color565(temp, temp, temp));
 
             xckLOWtoHIGH(); // Clock to get the next one
           }
         }
+
+        // print it on the screen:
+        //for (int row = 0; row < 10; row++) {
+        tft.begin();
+
+        // color = random(0, 65000);
+
+        for (int column = 0; column < 128; column++) {
+          // tft.drawPixelFAST(column + offset_column, row  + offset_row, color);
+          temp = graphicBuffer[column];
+          tft.drawPixelFAST(column + offset_column, row  + offset_row, tft.Color565(temp , temp, temp));
+        }
+
+        tft.commit(); // Commit every row!
+        //}
 
         // Send complete row:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
         if (row + 1 % 64 == 0)
           outputConfig();// Print the current config on the display
+
       }
-      //Serial.print("-");
-      //Serial.println(millis());
+      Serial.print("-");
+      Serial.println(millis());
     } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
       for (int row = 0; row < 32; row++) {
         for (int column = 0; column < 32; column++) {
