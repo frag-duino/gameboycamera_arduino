@@ -241,46 +241,31 @@ void loop() {
             else // Testmode
               temp = getNextValue(); // Returns a 8 Bit value (0-255)
 
-            if (temp < 64)
-              temp = 0;
-            else if (temp < 128)
-              temp = 1;
-            else if (temp < 192)
-              temp = 2;
-            else
-              temp = 3;
+            // Reduce bitness to 2 Bit (0-3)
+            if (temp < 64) temp = 0;
+            else if (temp < 128) temp = 1;
+            else if (temp < 192) temp = 2;
+            else temp = 3;
 
+            // And put it in the output byte
             if (pixel == 0)
               outBuffer[column] = temp; // 000000xx
             else
               outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
-            temp *= 85; // make it 8 Bit again for printing on the display
-            graphicBuffer[column * 4 + pixel] = temp;
-            // Print it 1:1 on the display:
-            //tft.drawPixelFAST(column * 4 + pixel + offset_column, row  + offset_row, tft.Color565(temp, temp, temp));
-            // tft.fillRect(column * 4 + pixel + offset_column, row  + offset_row, 1, 1, tft.Color565(temp, temp, temp));
+            graphicBuffer[column * 4 + pixel] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
 
-            xckLOWtoHIGH(); // Clock to get the next one
+            xckLOWtoHIGH(); // Clock to get the next pixel
           }
         }
 
-        // print it on the screen:
-        //for (int row = 0; row < 10; row++) {
+        // Print the row on the screen (TODO: Optimization by higher buffer)
         tft.begin();
-
-        // color = random(0, 65000);
-
-        for (int column = 0; column < 128; column++) {
-          // tft.drawPixelFAST(column + offset_column, row  + offset_row, color);
-          temp = graphicBuffer[column];
-          tft.drawPixelFAST(column + offset_column, row  + offset_row, tft.Color565(temp , temp, temp));
-        }
-
+        for (int column = 0; column < 128; column++)
+          tft.drawPixelFAST(column + offset_column, row  + offset_row, tft.Color565(graphicBuffer[column], graphicBuffer[column], graphicBuffer[column]));
         tft.commit(); // Commit every row!
-        //}
 
-        // Send complete row:
+        // Send complete row to serial:
         if (take_photo)
           Serial.write(outBuffer, 32); // Send complete buffer
         if (row + 1 % 64 == 0)
