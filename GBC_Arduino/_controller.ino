@@ -57,7 +57,7 @@ void outputConfig() {
   //display.fillRect(0, 0, display.width(), 16, 0);
   //display.fillRect(0, 16, 95, display.height(), 0);
 
-return; // TODO: Ändern!
+  return; // TODO: Ändern!
 
   // Output selected Buttons:
   //display.setCursor(0, 0);

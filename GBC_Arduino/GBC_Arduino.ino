@@ -95,6 +95,7 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
 NESpad nintendo = NESpad(A4, A5, A6);
 byte outBuffer[128];
 byte graphicBuffer[128];
+int graphicPointer;
 byte temp;
 char c;
 String input, tempString;
@@ -102,6 +103,7 @@ boolean take_photo = false;
 byte state_button;
 boolean enable_enhanced_mode = false;
 int randomValue = 0;
+
 
 void setup() {
   // Initialize Serial
@@ -254,16 +256,14 @@ void loop() {
               outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
             graphicBuffer[column * 4 + pixel] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
-
+            graphicPointer++;
             xckLOWtoHIGH(); // Clock to get the next pixel
           }
         }
 
-        // Print the row on the screen (TODO: Optimization by higher buffer)
-        tft.begin();
-        for (int column = 0; column < 128; column++)
-          tft.drawPixelFAST(column + offset_column, row  + offset_row, tft.Color565(graphicBuffer[column], graphicBuffer[column], graphicBuffer[column]));
-        tft.commit(); // Commit every row!
+
+        drawBuffer(); // Draw the buffer
+        
 
         // Send complete row to serial:
         if (take_photo)
@@ -332,12 +332,5 @@ void loop() {
       take_photo = false;
     }
   }
-}
-
-int getNextValue() {
-  randomValue++;
-  if (randomValue == 256)
-    randomValue = random(256); // get one random value for test mode
-  return randomValue;
 }
 
