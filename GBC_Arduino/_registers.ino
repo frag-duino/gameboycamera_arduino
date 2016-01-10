@@ -151,11 +151,15 @@ void setReg( unsigned char adr, unsigned char data )
 }
 
 // Send some clocks:
-void xckHIGHTtoLOW() { 
+void xckHIGHTtoLOW() {
   // digitalWrite(pin_xck, HIGH);
   // digitalWrite(pin_xck, LOW);
   PORTH |= _BV(PH6);
+  //camStepDelay();
+  //camStepDelay();
   PORTH &= ~_BV(PH6);
+  //camStepDelay();
+  //camStepDelay();
 }
 
 void xckLOWtoHIGH() {
@@ -163,4 +167,15 @@ void xckLOWtoHIGH() {
   // digitalWrite(pin_xck, HIGH);
   PORTH &= ~_BV(PH6);
   PORTH |= _BV(PH6);
+  //camStepDelay();
+  //camStepDelay();
 }
+
+// Delay used between each signal sent to the AR (four per xck cycle).
+void camStepDelay() {
+  unsigned char u = 0x07;
+  while (u--) {
+    __asm__ __volatile__ ("nop");
+  }
+}
+

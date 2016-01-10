@@ -134,7 +134,6 @@ void setup() {
   //tft.print("GameboyCamera initialized");
 
   tft.initFAST();
-  SPI.setClockDivider(SPI_CLOCK_DIV2);
   tft.setRotation(0);
   tft.setAddrWindow(0, 0, 127, 127); // Should be 127, 167
 
@@ -142,13 +141,12 @@ void setup() {
   // Initialize Prescaler for faster analog read:
   ADCSRA &= ~(bit (ADPS0) | bit (ADPS1) | bit (ADPS2)); // clear prescaler bits
   //ADCSRA |= bit (ADPS0);                               //   2
-  ADCSRA |= bit (ADPS1);                               //   4
-  //ADCSRA |= bit (ADPS0) | bit (ADPS1);                 //   8
+  //ADCSRA |= bit (ADPS1);                               //   4
+  ADCSRA |= bit (ADPS0) | bit (ADPS1);                 //   8
   //ADCSRA |= bit (ADPS2);                               //  16
   //ADCSRA |= bit (ADPS0) | bit (ADPS2);                 //  32
   //ADCSRA |= bit (ADPS1) | bit (ADPS2);                 //  64
   //ADCSRA |= bit (ADPS0) | bit (ADPS1) | bit (ADPS2);   // 128
-
 
   Serial.println("Initialized");
 }
