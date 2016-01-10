@@ -60,6 +60,7 @@ void setConfig() {
   // Serial.println(reg7, BIN);
   // Serial.print("Reg0: ");
   // Serial.println(reg0, BIN);
+  // Serial.println("Registers set!");
 }
 
 // Sets the registers to the camera:
