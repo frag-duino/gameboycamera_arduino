@@ -248,11 +248,14 @@ void loop() {
   while (digitalRead(pin_read) == LOW)  // READ signal
     xckHIGHTtoLOW();
   digitalWrite(pin_led_exposure, LOW);
-  
+
   if (MEASURE_TIME)
     start = millis();
 
-  Serial.println("!IMAGE!");
+  checkInputs();
+
+  if (take_photo)
+    Serial.println("!IMAGE!");
 
   if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
     for (int row = 0; row < 128; row++) {
@@ -288,8 +291,8 @@ void loop() {
       // Send complete row to serial:
       if (take_photo)
         Serial.write(outBuffer, 32); // Send complete buffer
-      if (row + 1 % 64 == 0)
-        outputConfig();// Print the current config on the display
+      //if (row + 1 % 64 == 0)
+      //        checkInputs();// Print the current config on the display
     }
   } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
     for (int row = 0; row < 32; row++) {
@@ -316,8 +319,8 @@ void loop() {
       // Send row:
       if (take_photo)
         Serial.write(outBuffer, 32); // Send complete buffer
-      if (row + 1 % 16 == 0)
-        outputConfig();// Print the current config on the display
+      //if (row + 1 % 16 == 0)
+      //checkInputs();// Print the current config on the display
     }
   } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
     for (int row = 0; row < 128; row++) {
@@ -340,13 +343,14 @@ void loop() {
       // Send row:
       if (take_photo)
         Serial.write(outBuffer, 128); // Send complete buffer
-      if (row + 1 % 64 == 0)
-        outputConfig();// Print the current config on the display
+      //if (row + 1 % 64 == 0)
+      //checkInputs();// Print the current config on the display
     }
   }
 
-  outputConfig();// Print the current config on the display
+  //checkInputs();// Print the current config on the display
   setConfig();// Apply the current inputs to the config
+
   if (MEASURE_TIME)
     Serial.println(millis() - start);
 
