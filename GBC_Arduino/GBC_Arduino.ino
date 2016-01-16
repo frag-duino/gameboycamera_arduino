@@ -30,6 +30,10 @@ const char COMMAND_COLORDEPTH = 'D';
 const char COMMAND_RESOLUTION = 'R';
 const char COMMAND_MODE = 'F';
 
+// Byte paddles:
+const byte BYTE_PHOTO_BEGIN = B11001100; // 204
+const byte BYTE_PHOTO_END   = B00110011; // 51
+
 // Pins
 const int pin_vout = A3;
 const int pin_read = 8;
@@ -112,6 +116,7 @@ char command, value;
 void setup() {
   // Initialize Serial
   Serial.begin(115200);
+  // Serial.begin(9600);
 
   setConfig(); // Set the config
   randomSeed(analogRead(0));
@@ -255,7 +260,7 @@ void loop() {
   checkInputs();
 
   if (take_photo)
-    Serial.println("!IMAGE!");
+    Serial.write(BYTE_PHOTO_BEGIN);
 
   if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
     for (int row = 0; row < 128; row++) {
@@ -284,6 +289,10 @@ void loop() {
 
           xckLOWtoHIGH(); // Clock to get the next pixel
         }
+
+        // Prevent to be mistaken with end or beginning
+        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+          outBuffer[column]++;
       }
 
       drawBuffer(); // Draw the buffer
@@ -291,8 +300,6 @@ void loop() {
       // Send complete row to serial:
       if (take_photo)
         Serial.write(outBuffer, 32); // Send complete buffer
-      //if (row + 1 % 64 == 0)
-      //        checkInputs();// Print the current config on the display
     }
   } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
     for (int row = 0; row < 32; row++) {
@@ -302,6 +309,10 @@ void loop() {
           outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
         else // Testmode
           outBuffer[column] = getNextValue();
+
+        // Prevent to be mistaken with end or beginning
+        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+          outBuffer[column]++;
 
         // Print it 1:1 on the display:
         //tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
@@ -319,8 +330,6 @@ void loop() {
       // Send row:
       if (take_photo)
         Serial.write(outBuffer, 32); // Send complete buffer
-      //if (row + 1 % 16 == 0)
-      //checkInputs();// Print the current config on the display
     }
   } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
     for (int row = 0; row < 128; row++) {
@@ -330,6 +339,10 @@ void loop() {
           outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
         else // Test mode
           outBuffer[column] = getNextValue();
+
+        // Prevent to be mistaken with end or beginning
+        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+          outBuffer[column]++;
 
         // Print it 1:1 on the display:
         graphicBuffer[graphicPointer] = outBuffer[column]; // Make it 8 Bit again and put it in the displaybuffer
@@ -343,12 +356,9 @@ void loop() {
       // Send row:
       if (take_photo)
         Serial.write(outBuffer, 128); // Send complete buffer
-      //if (row + 1 % 64 == 0)
-      //checkInputs();// Print the current config on the display
     }
   }
 
-  //checkInputs();// Print the current config on the display
   setConfig();// Apply the current inputs to the config
 
   if (MEASURE_TIME)
@@ -356,12 +366,8 @@ void loop() {
 
   // Send end-bytes
   if (take_photo) {
-    Serial.print(B00110011);
-    Serial.print(B00110011);
-    Serial.print(B00110011);
-    Serial.println("!END!");
-    Serial.println("Next");
+    Serial.write(BYTE_PHOTO_END);
     take_photo = false;
-  }
+      }
 }
 
