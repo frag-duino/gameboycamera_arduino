@@ -107,11 +107,13 @@ byte temp;
 char c;
 String input, tempString;
 boolean take_photo = false;
+boolean receiving_commands = false;
 byte state_button;
 boolean enable_enhanced_mode = false;
 int randomValue = 0;
 unsigned long start = 0; // For time-measurements
-char command, value;
+char command;
+byte value;
 
 void setup() {
   // Initialize Serial
@@ -147,13 +149,14 @@ void setup() {
   //ADCSRA |= bit (ADPS1) | bit (ADPS2);                 //  64
   //ADCSRA |= bit (ADPS0) | bit (ADPS1) | bit (ADPS2);   // 128
 
-  Serial.println("Initialized");
+  Serial.print("Initialized");
   digitalWrite(pin_led_exposure, LOW);
 }
 
 void loop() {
 
   if (Serial.available() > 0) {
+    receiving_commands = true;
     c = Serial.read();
     input += c;
     if (c == '\n') {
@@ -170,204 +173,206 @@ void loop() {
         value = input[1];
         input = input.substring(2); // Chop the first two chars off
         //Serial.print("Processing command: ");
-        //Serial.print(command);
-        //Serial.print(" - ");
-        //Serial.println(value);
+        Serial.print(command);
+        Serial.print("-");
+        Serial.print(value);
+        Serial.print(" ");
 
-        if (input[0] == TYPE_GAIN)
-          set_gain = input[1];
-        else if (input[0] == TYPE_VH)
-          set_vh = input[1];
-        else if (input[0] == TYPE_N)
-          set_n = input[1];
-        else if (input[0] == TYPE_C0)
-          set_c0 = input[1];
-        else if (input[0] == TYPE_C1)
-          set_c1 = input[1];
-        else if (input[0] == TYPE_P)
-          set_p = input[1];
-        else if (input[0] == TYPE_M)
-          set_m = input[1];
-        else if (input[0] == TYPE_X)
-          set_x = input[1];
-        else if (input[0] == TYPE_VREF)
-          set_vref = input[1];
-        else if (input[0] == TYPE_I)
-          set_i = input[1];
-        else if (input[0] == TYPE_EDGE)
-          set_edge = input[1];
-        else if (input[0] == TYPE_OFFSET)
-          set_offset = input[1];
-        else if (input[0] == TYPE_Z)
-          set_z = input[1];
-        else if (input[0] == COMMAND_MODE)
-          set_mode = input[1];
-        else if (input[0] == COMMAND_COLORDEPTH)
-          set_colordepth = input[1];
-        else if (input[0] == COMMAND_RESOLUTION)
-          set_resolution = input[1];
-        else if (input[0] == COMMAND_TAKEPHOTO)
-          take_photo = true;
+        if (command == TYPE_GAIN)
+          set_gain = value;
+        else if (command == TYPE_VH)
+          set_vh = value;
+        else if (command == TYPE_N)
+          set_n = value;
+        else if (command == TYPE_C0)
+          set_c0 = value;
+        else if (command == TYPE_C1)
+          set_c1 = value;
+        else if (command == TYPE_P)
+          set_p = value;
+        else if (command == TYPE_M)
+          set_m = value;
+        else if (command == TYPE_X)
+          set_x = value;
+        else if (command == TYPE_VREF)
+          set_vref = value;
+        else if (command == TYPE_I)
+          set_i = value;
+        else if (command == TYPE_EDGE)
+          set_edge = value;
+        else if (command == TYPE_OFFSET)
+          set_offset = value;
+        else if (command == TYPE_Z)
+          set_z = value;
+        else if (command == COMMAND_MODE)
+          set_mode = value;
+        else if (command == COMMAND_COLORDEPTH)
+          set_colordepth = value;
+        else if (command == COMMAND_RESOLUTION)
+          set_resolution = value;
+        //else if (command == COMMAND_TAKEPHOTO)
+        //  take_photo = true;
         else
-          Serial.print("Unknown");
+          Serial.print("U");
       }
       input = "";
+      receiving_commands = false;
       Serial.println("OK");
     }
   }
 
+  if (!receiving_commands) {
+    // Smile, taking a photo :)
+    graphicPointer = 0;
 
-  // Smile, taking a photo :)
-  graphicPointer = 0;
-
-  // Reset camera
-  // Serial.println("Reset camera:");
-  digitalWrite(pin_reset, LOW); // RESET -> Low
-  xckHIGHTtoLOW();
-  xckHIGHTtoLOW();
-  digitalWrite(pin_reset, HIGH); // RESET -> High
-  xckHIGHTtoLOW();
-
-  // Set the registers:
-  // Serial.println("Set the registers");
-  setReg(1, reg1);
-  setReg(2, reg2);
-  setReg(3, reg3);
-  setReg(4, reg4);
-  setReg(5, reg5);
-  setReg(6, reg6);
-  setReg(7, reg7);
-  setReg(0, reg0);
-
-  // Starting the camera:
-  // Serial.println("Starting camera");
-  digitalWrite(pin_led_exposure, HIGH);
-  xckHIGHTtoLOW();
-  digitalWrite(pin_start, HIGH); // Start High -> Kamerastart
-  digitalWrite(pin_xck, HIGH);
-  digitalWrite(pin_start, LOW); // Start L
-  xckHIGHTtoLOW();
-
-  // Wait until the images comes:
-  // Serial.println("Waiting for image:");
-  while (digitalRead(pin_read) == LOW)  // READ signal
+    // Reset camera
+    // Serial.println("Reset camera:");
+    digitalWrite(pin_reset, LOW); // RESET -> Low
     xckHIGHTtoLOW();
-  digitalWrite(pin_led_exposure, LOW);
+    xckHIGHTtoLOW();
+    digitalWrite(pin_reset, HIGH); // RESET -> High
+    xckHIGHTtoLOW();
 
-  if (MEASURE_TIME)
-    start = millis();
+    // Set the registers:
+    // Serial.println("Set the registers");
+    setReg(1, reg1);
+    setReg(2, reg2);
+    setReg(3, reg3);
+    setReg(4, reg4);
+    setReg(5, reg5);
+    setReg(6, reg6);
+    setReg(7, reg7);
+    setReg(0, reg0);
 
-  checkInputs();
+    // Starting the camera:
+    // Serial.println("Starting camera");
+    digitalWrite(pin_led_exposure, HIGH);
+    xckHIGHTtoLOW();
+    digitalWrite(pin_start, HIGH); // Start High -> Kamerastart
+    digitalWrite(pin_xck, HIGH);
+    digitalWrite(pin_start, LOW); // Start L
+    xckHIGHTtoLOW();
 
-  if (take_photo)
-    Serial.write(BYTE_PHOTO_BEGIN);
+    // Wait until the images comes:
+    // Serial.println("Waiting for image:");
+    while (digitalRead(pin_read) == LOW)  // READ signal
+      xckHIGHTtoLOW();
+    digitalWrite(pin_led_exposure, LOW);
 
-  if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
-    for (int row = 0; row < 128; row++) {
-      for (int column = 0; column < 32; column++) {
-        for (int pixel = 0; pixel < 4; pixel++) {
+    if (MEASURE_TIME)
+      start = millis();
+
+    checkInputs();
+
+    if (take_photo)
+      Serial.write(BYTE_PHOTO_BEGIN);
+
+    if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
+      for (int row = 0; row < 128; row++) {
+        for (int column = 0; column < 32; column++) {
+          for (int pixel = 0; pixel < 4; pixel++) {
+
+            if (set_mode == MODE_REGULAR) // Regular mode, read voltage
+              temp = analogRead(pin_vout) / 4; // --> make it a 8 Bit value (0-1024 --> 0-255)
+            else // Testmode
+              temp = getNextValue(); // Returns a 8 Bit value (0-255)
+
+            // Reduce bitness to 2 Bit (0-3)
+            if (temp < 64) temp = 0;
+            else if (temp < 128) temp = 1;
+            else if (temp < 192) temp = 2;
+            else temp = 3;
+
+            // And put it in the output byte
+            if (pixel == 0)
+              outBuffer[column] = temp; // 000000xx
+            else
+              outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
+
+            graphicBuffer[graphicPointer] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
+            graphicPointer++;
+
+            xckLOWtoHIGH(); // Clock to get the next pixel
+          }
+
+          // Prevent to be mistaken with end or beginning
+          if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+            outBuffer[column]++;
+        }
+
+        drawBuffer(); // Draw the buffer
+
+        // Send complete row to serial:
+        if (take_photo)
+          Serial.write(outBuffer, 32); // Send complete buffer
+      }
+    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
+      for (int row = 0; row < 32; row++) {
+        for (int column = 0; column < 32; column++) {
 
           if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-            temp = analogRead(pin_vout) / 4; // --> make it a 8 Bit value (0-1024 --> 0-255)
+            outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
           else // Testmode
-            temp = getNextValue(); // Returns a 8 Bit value (0-255)
+            outBuffer[column] = getNextValue();
 
-          // Reduce bitness to 2 Bit (0-3)
-          if (temp < 64) temp = 0;
-          else if (temp < 128) temp = 1;
-          else if (temp < 192) temp = 2;
-          else temp = 3;
+          // Prevent to be mistaken with end or beginning
+          if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+            outBuffer[column]++;
 
-          // And put it in the output byte
-          if (pixel == 0)
-            outBuffer[column] = temp; // 000000xx
-          else
-            outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
+          // Print it 1:1 on the display:
+          //tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
+          for (int i = 0; i < 4; i++) {
+            graphicBuffer[graphicPointer] = outBuffer[column]; // Put it in the displaybuffer
+            graphicPointer++;
+          }
 
-          graphicBuffer[graphicPointer] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
-          graphicPointer++;
-
-          xckLOWtoHIGH(); // Clock to get the next pixel
+          for (int i = 0; i < 4; i++) // 4times=128/4
+            xckLOWtoHIGH(); // Clock to get the next one
         }
 
-        // Prevent to be mistaken with end or beginning
-        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
-          outBuffer[column]++;
+        drawBuffer(); // Draw the buffer
+
+        // Send row:
+        if (take_photo)
+          Serial.write(outBuffer, 32); // Send complete buffer
       }
+    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
+      for (int row = 0; row < 128; row++) {
+        for (int column = 0; column < 128; column++) {
 
-      drawBuffer(); // Draw the buffer
+          if (set_mode == MODE_REGULAR) // Regular mode, read voltage
+            outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
+          else // Test mode
+            outBuffer[column] = getNextValue();
 
-      // Send complete row to serial:
-      if (take_photo)
-        Serial.write(outBuffer, 32); // Send complete buffer
-    }
-  } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
-    for (int row = 0; row < 32; row++) {
-      for (int column = 0; column < 32; column++) {
+          // Prevent to be mistaken with end or beginning
+          if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+            outBuffer[column]++;
 
-        if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-          outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
-        else // Testmode
-          outBuffer[column] = getNextValue();
-
-        // Prevent to be mistaken with end or beginning
-        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
-          outBuffer[column]++;
-
-        // Print it 1:1 on the display:
-        //tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
-        for (int i = 0; i < 4; i++) {
-          graphicBuffer[graphicPointer] = outBuffer[column]; // Put it in the displaybuffer
+          // Print it 1:1 on the display:
+          graphicBuffer[graphicPointer] = outBuffer[column]; // Make it 8 Bit again and put it in the displaybuffer
           graphicPointer++;
-        }
 
-        for (int i = 0; i < 4; i++) // 4times=128/4
           xckLOWtoHIGH(); // Clock to get the next one
+        }
+
+        drawBuffer(); // Draw the buffer
+
+        // Send row:
+        if (take_photo)
+          Serial.write(outBuffer, 128); // Send complete buffer
       }
-
-      drawBuffer(); // Draw the buffer
-
-      // Send row:
-      if (take_photo)
-        Serial.write(outBuffer, 32); // Send complete buffer
     }
-  } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
-    for (int row = 0; row < 128; row++) {
-      for (int column = 0; column < 128; column++) {
 
-        if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-          outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
-        else // Test mode
-          outBuffer[column] = getNextValue();
+    setConfig();// Apply the current inputs to the config
 
-        // Prevent to be mistaken with end or beginning
-        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
-          outBuffer[column]++;
+    if (MEASURE_TIME)
+      Serial.println(millis() - start);
 
-        // Print it 1:1 on the display:
-        graphicBuffer[graphicPointer] = outBuffer[column]; // Make it 8 Bit again and put it in the displaybuffer
-        graphicPointer++;
-
-        xckLOWtoHIGH(); // Clock to get the next one
-      }
-
-      drawBuffer(); // Draw the buffer
-
-      // Send row:
-      if (take_photo)
-        Serial.write(outBuffer, 128); // Send complete buffer
+    // Send end-bytes
+    if (take_photo) {
+      Serial.write(BYTE_PHOTO_END);
+      take_photo = false;
     }
   }
-
-  setConfig();// Apply the current inputs to the config
-
-  if (MEASURE_TIME)
-    Serial.println(millis() - start);
-
-  // Send end-bytes
-  if (take_photo) {
-    Serial.write(BYTE_PHOTO_END);
-    take_photo = false;
-      }
 }
-
