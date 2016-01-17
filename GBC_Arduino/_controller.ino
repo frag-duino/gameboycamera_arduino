@@ -9,8 +9,6 @@ void checkInputs() {
     return;
   }
 
-
-
   // Switch resolution/colordepth:
   if (enable_enhanced_mode && state_button & NES_SELECT) {
     if (state_button & NES_START) { // 1

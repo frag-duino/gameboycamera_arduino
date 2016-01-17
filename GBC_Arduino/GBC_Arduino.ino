@@ -161,60 +161,59 @@ void loop() {
     input += c;
     if (c == '\n') {
       //Serial.print("Received setting: ");
-      //Serial.print(input[0]);
-      //Serial.print('=');
-      //Serial.print(input[1], BIN);
-      //Serial.print(" (");
-      //Serial.print(input[1], DEC);
-      //Serial.println(")");
+      //Serial.print(input);
+      //Serial.print( "(");
+      //Serial.print(input.length());
+      //Serial.print("): ");
+      
+      if (input.length() % 2 == 1) // not even
+        for (int pointer = 0; pointer < input.length()-1; pointer += 2) {
+          command = input[pointer];
+          value = input[pointer + 1];
 
-      while (input.length() >= 2) {
-        command = input[0];
-        value = input[1];
-        input = input.substring(2); // Chop the first two chars off
-        //Serial.print("Processing command: ");
-        Serial.print(command);
-        Serial.print("-");
-        Serial.print(value);
-        Serial.print(" ");
+          //Serial.print("Processing command: ");
+          Serial.print(command);
+          Serial.print("-");
+          Serial.print(value);
+          Serial.print(" ");
 
-        if (command == TYPE_GAIN)
-          set_gain = value;
-        else if (command == TYPE_VH)
-          set_vh = value;
-        else if (command == TYPE_N)
-          set_n = value;
-        else if (command == TYPE_C0)
-          set_c0 = value;
-        else if (command == TYPE_C1)
-          set_c1 = value;
-        else if (command == TYPE_P)
-          set_p = value;
-        else if (command == TYPE_M)
-          set_m = value;
-        else if (command == TYPE_X)
-          set_x = value;
-        else if (command == TYPE_VREF)
-          set_vref = value;
-        else if (command == TYPE_I)
-          set_i = value;
-        else if (command == TYPE_EDGE)
-          set_edge = value;
-        else if (command == TYPE_OFFSET)
-          set_offset = value;
-        else if (command == TYPE_Z)
-          set_z = value;
-        else if (command == COMMAND_MODE)
-          set_mode = value;
-        else if (command == COMMAND_COLORDEPTH)
-          set_colordepth = value;
-        else if (command == COMMAND_RESOLUTION)
-          set_resolution = value;
-        //else if (command == COMMAND_TAKEPHOTO)
-        //  take_photo = true;
-        else
-          Serial.print("U");
-      }
+          if (command == TYPE_GAIN)
+            set_gain = value;
+          else if (command == TYPE_VH)
+            set_vh = value;
+          else if (command == TYPE_N)
+            set_n = value;
+          else if (command == TYPE_C0)
+            set_c0 = value;
+          else if (command == TYPE_C1)
+            set_c1 = value;
+          else if (command == TYPE_P)
+            set_p = value;
+          else if (command == TYPE_M)
+            set_m = value;
+          else if (command == TYPE_X)
+            set_x = value;
+          else if (command == TYPE_VREF)
+            set_vref = value;
+          else if (command == TYPE_I)
+            set_i = value;
+          else if (command == TYPE_EDGE)
+            set_edge = value;
+          else if (command == TYPE_OFFSET)
+            set_offset = value;
+          else if (command == TYPE_Z)
+            set_z = value;
+          else if (command == COMMAND_MODE)
+            set_mode = value;
+          else if (command == COMMAND_COLORDEPTH)
+            set_colordepth = value;
+          else if (command == COMMAND_RESOLUTION)
+            set_resolution = value;
+          //else if (command == COMMAND_TAKEPHOTO)
+          //  take_photo = true;
+          else
+            Serial.print("U");
+        }
       input = "";
       receiving_commands = false;
       Serial.println("OK");
