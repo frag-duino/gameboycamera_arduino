@@ -153,17 +153,23 @@ void setReg( unsigned char adr, unsigned char data )
 
 // Send some clocks:
 void xckHIGHTtoLOW() {
-  // PORTH |= _BV(PH6); // Mega
-  // PORTH &= ~_BV(PH6); // Mega
-  PORTB |= _BV(PB1); // Uno
-  PORTB &= ~_BV(PB1); // Uno
+  // digitalWrite(pin_xck, HIGH);
+  // digitalWrite(pin_xck, LOW);
+  PORTH |= _BV(PH6);
+  //camStepDelay();
+  //camStepDelay();
+  PORTH &= ~_BV(PH6);
+  //camStepDelay();
+  //camStepDelay();
 }
 
 void xckLOWtoHIGH() {
-  // PORTH &= ~_BV(PH6); // Mega
-  // PORTH |= _BV(PH6); // Mega
-  PORTB &= ~_BV(PB1); // Uno
-  PORTB |= _BV(PB1); // Uno
+  // digitalWrite(pin_xck, LOW);
+  // digitalWrite(pin_xck, HIGH);
+  PORTH &= ~_BV(PH6);
+  PORTH |= _BV(PH6);
+  //camStepDelay();
+  //camStepDelay();
 }
 
 // Delay used between each signal sent to the AR (four per xck cycle).
@@ -172,13 +178,5 @@ void camStepDelay() {
   while (u--) {
     __asm__ __volatile__ ("nop");
   }
-}
-
-// Returns a pseudo-random value
-int getNextValue() {
-  randomValue++;
-  if (randomValue == 256)
-    randomValue = random(256); // get one random value for test mode
-  return randomValue;
 }
 

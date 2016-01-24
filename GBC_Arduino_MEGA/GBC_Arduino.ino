@@ -36,19 +36,20 @@ const byte BYTE_PHOTO_END   = B00110011; // 51
 
 // Pins
 const int pin_vout = A3;
-const int pin_start = 7;
 const int pin_read = 8;
-const int pin_xck = 9; // PH6 on Mega; PB1 on Uno
+const int pin_xck = 9; // PH6 on Mega
 const int pin_reset = 10;
 const int pin_load = 11;
 const int pin_sin = 12;
-const int pin_led_exposure = 13; // Build in
-const int pin_analog_random = A4;
-const int pin_nes_strobe = A1; // Yellow
-const int pin_nes_clock = A0;  // Blue
-const int pin_nes_data = A2;   // Brown
-// Pin nes 5V: Red
-// Pin nes GND: White
+const int pin_start = 13;
+const int pin_led_exposure = 3;
+// Hardware  SPI for OLED-Display:
+#define TFT_RST    5
+#define TFT_DC     6
+#define TFT_CS     7
+// Hardware Mega MOSI: 51 > SDA
+// Hardware Mega SCK:  52 > SCL
+// Backlight is conncted with 220 Ohm (better: 120) to 5V
 
 // Constants
 const int COLORDEPTH_8BIT = 8;
@@ -61,7 +62,7 @@ const int offset_row = 0;
 const int offset_column = 0;
 const unsigned long INTERVAL_READY = 500;
 const boolean MEASURE_TIME = false;
-const boolean ENABLE_DISPLAY = false;
+const boolean ENABLE_DISPLAY = true;
 
 /*
   Set the color depth:
@@ -96,8 +97,12 @@ unsigned int set_offset  = 0;  // Offset=0V
 unsigned int set_z    = 2;  // Z="10"
 
 // Variables:
-NESpad nintendo = NESpad(pin_nes_strobe,pin_nes_clock, pin_nes_data);
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS,  TFT_DC, TFT_RST);
+NESpad nintendo = NESpad(A4, A5, A6);
 byte outBuffer[128];
+const int size_graphicbuffer = 128;
+byte graphicBuffer[size_graphicbuffer];
+int graphicPointer;
 byte temp;
 char c;
 String input, tempString;
@@ -113,9 +118,10 @@ byte value;
 void setup() {
   // Initialize Serial
   Serial.begin(115200);
+  // Serial.begin(9600);
 
   setConfig(); // Set the config
-  randomSeed(analogRead(pin_analog_random));
+  randomSeed(analogRead(0));
 
   // initialize pins:
   pinMode(pin_read, INPUT);
@@ -128,11 +134,16 @@ void setup() {
   digitalWrite(pin_led_exposure, HIGH);
   delay(500);
 
+  // Initialize Display
+  tft.initFAST();
+  tft.setRotation(0);
+  tft.setAddrWindow(0, 0, 127, 127); // Should be 127, 167
+
   // Initialize Prescaler for faster analog read:
   ADCSRA &= ~(bit (ADPS0) | bit (ADPS1) | bit (ADPS2)); // clear prescaler bits
   //ADCSRA |= bit (ADPS0);                               //   2
-  ADCSRA |= bit (ADPS1);                               //   4
-  //ADCSRA |= bit (ADPS0) | bit (ADPS1);                 //   8
+  //ADCSRA |= bit (ADPS1);                               //   4
+  ADCSRA |= bit (ADPS0) | bit (ADPS1);                 //   8
   //ADCSRA |= bit (ADPS2);                               //  16
   //ADCSRA |= bit (ADPS0) | bit (ADPS2);                 //  32
   //ADCSRA |= bit (ADPS1) | bit (ADPS2);                 //  64
@@ -154,9 +165,9 @@ void loop() {
       //Serial.print( "(");
       //Serial.print(input.length());
       //Serial.print("): ");
-
+      
       if (input.length() % 2 == 1) // not even
-        for (int pointer = 0; pointer < input.length() - 1; pointer += 2) {
+        for (int pointer = 0; pointer < input.length()-1; pointer += 2) {
           command = input[pointer];
           value = input[pointer + 1];
 
@@ -209,7 +220,9 @@ void loop() {
     }
   }
 
-  if (!receiving_commands) { // Smile, taking a photo :)
+  if (!receiving_commands) {
+    // Smile, taking a photo :)
+    graphicPointer = 0;
 
     // Reset camera
     // Serial.println("Reset camera:");
@@ -275,6 +288,9 @@ void loop() {
             else
               outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
 
+            graphicBuffer[graphicPointer] = temp * 85; // Make it 8 Bit again and put it in the displaybuffer
+            graphicPointer++;
+
             xckLOWtoHIGH(); // Clock to get the next pixel
           }
 
@@ -282,6 +298,8 @@ void loop() {
           if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
             outBuffer[column]++;
         }
+
+        drawBuffer(); // Draw the buffer
 
         // Send complete row to serial:
         if (take_photo)
@@ -300,9 +318,18 @@ void loop() {
           if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
             outBuffer[column]++;
 
+          // Print it 1:1 on the display:
+          //tft.drawPixel(column + offset_column, row + offset_row, tft.Color565(outBuffer[column], outBuffer[column], outBuffer[column]));
+          for (int i = 0; i < 4; i++) {
+            graphicBuffer[graphicPointer] = outBuffer[column]; // Put it in the displaybuffer
+            graphicPointer++;
+          }
+
           for (int i = 0; i < 4; i++) // 4times=128/4
             xckLOWtoHIGH(); // Clock to get the next one
         }
+
+        drawBuffer(); // Draw the buffer
 
         // Send row:
         if (take_photo)
@@ -321,8 +348,14 @@ void loop() {
           if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
             outBuffer[column]++;
 
+          // Print it 1:1 on the display:
+          graphicBuffer[graphicPointer] = outBuffer[column]; // Make it 8 Bit again and put it in the displaybuffer
+          graphicPointer++;
+
           xckLOWtoHIGH(); // Clock to get the next one
         }
+
+        drawBuffer(); // Draw the buffer
 
         // Send row:
         if (take_photo)
