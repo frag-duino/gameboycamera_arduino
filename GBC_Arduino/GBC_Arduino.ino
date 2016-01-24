@@ -4,10 +4,6 @@
 */
 
 // Imports for the display and the controller:
-#include <SPI.h>
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_ST7735.h> // Hardware-specific library
 #include <NESpad.h>
 
 // Protocol:

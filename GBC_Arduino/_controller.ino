@@ -34,9 +34,9 @@ void checkInputs() {
   }
 
   // Up/Down: C1
-  if (state_button & NES_UP)
+  if (enable_enhanced_mode && state_button & NES_UP)
     set_c1++;
-  if (state_button & NES_DOWN)
+  if (enable_enhanced_mode && state_button & NES_DOWN)
     set_c1--;
   if (set_c1 > 256) // Byte is 2 Bytes length!
     set_c1 = 0;
@@ -44,15 +44,14 @@ void checkInputs() {
     set_c1 = 255;
 
   // Left/Right: Gain
-  if (state_button & NES_LEFT)
+  if (enable_enhanced_mode && state_button & NES_LEFT)
     set_gain--;
-  if (state_button & NES_RIGHT)
+  if (enable_enhanced_mode && state_button & NES_RIGHT)
     set_gain++;
   if (set_gain > 256)
     set_gain = 0;
   if (set_gain == 256)
     set_gain = 255;
-
 
   if (state_button & NES_SELECT && state_button & NES_START)
     return;

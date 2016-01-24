@@ -166,14 +166,6 @@ void xckLOWtoHIGH() {
   PORTB |= _BV(PB1); // Uno
 }
 
-// Delay used between each signal sent to the AR (four per xck cycle).
-void camStepDelay() {
-  unsigned char u = 0x07;
-  while (u--) {
-    __asm__ __volatile__ ("nop");
-  }
-}
-
 // Returns a pseudo-random value
 int getNextValue() {
   randomValue++;
