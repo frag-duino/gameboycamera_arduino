@@ -21,13 +21,13 @@ const char TYPE_EDGE = 'E';
 const char TYPE_OFFSET = 'O';
 const char TYPE_Z = 'Z';
 
-const char COMMAND_TAKEPHOTO = 'T';
 const char COMMAND_COLORDEPTH = 'D';
 const char COMMAND_RESOLUTION = 'R';
 const char COMMAND_MODE = 'F';
 
 // Byte paddles:
-const byte BYTE_PHOTO_BEGIN = B11001100; // 204
+const byte BYTE_PHOTO_BEGIN_SHOW = B11001100; // 204
+const byte BYTE_PHOTO_BEGIN_SHOW_SAVE = B11001110; // 206
 const byte BYTE_PHOTO_END   = B00110011; // 51
 
 // Pins
@@ -92,12 +92,13 @@ unsigned int set_offset  = 0;  // Offset=0V
 unsigned int set_z    = 2;  // Z="10"
 
 // Variables:
-NESpad nintendo = NESpad(pin_nes_strobe,pin_nes_clock, pin_nes_data);
+NESpad nintendo = NESpad(pin_nes_strobe, pin_nes_clock, pin_nes_data);
 byte outBuffer[128];
 byte temp;
 char c;
 String input, tempString;
-boolean take_photo = false;
+boolean take_photo = true;
+boolean save_photo = false;
 boolean receiving_commands = false;
 byte state_button;
 boolean enable_enhanced_mode = false;
@@ -194,8 +195,6 @@ void loop() {
             set_colordepth = value;
           else if (command == COMMAND_RESOLUTION)
             set_resolution = value;
-          //else if (command == COMMAND_TAKEPHOTO)
-          //  take_photo = true;
           else
             Serial.print("U");
         }
@@ -246,8 +245,10 @@ void loop() {
 
     checkInputs();
 
-    if (take_photo)
-      Serial.write(BYTE_PHOTO_BEGIN);
+    if (take_photo && !save_photo) // Button A
+      Serial.write(BYTE_PHOTO_BEGIN_SHOW);
+    else if (take_photo && save_photo) // Button B
+      Serial.write(BYTE_PHOTO_BEGIN_SHOW_SAVE);
 
     if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
       for (int row = 0; row < 128; row++) {
@@ -275,7 +276,7 @@ void loop() {
           }
 
           // Prevent to be mistaken with end or beginning
-          if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+          if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE || outBuffer[column] == BYTE_PHOTO_END)
             outBuffer[column]++;
         }
 
@@ -293,7 +294,7 @@ void loop() {
             outBuffer[column] = getNextValue();
 
           // Prevent to be mistaken with end or beginning
-          if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+          if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE ||  outBuffer[column] == BYTE_PHOTO_END)
             outBuffer[column]++;
 
           for (int i = 0; i < 4; i++) // 4times=128/4
@@ -314,7 +315,7 @@ void loop() {
             outBuffer[column] = getNextValue();
 
           // Prevent to be mistaken with end or beginning
-          if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END)
+          if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE ||  outBuffer[column] == BYTE_PHOTO_END)
             outBuffer[column]++;
 
           xckLOWtoHIGH(); // Clock to get the next one
@@ -334,7 +335,8 @@ void loop() {
     // Send end-bytes
     if (take_photo) {
       Serial.write(BYTE_PHOTO_END);
-      take_photo = false;
+      take_photo = true;
+      save_photo = false;
     }
   }
 }

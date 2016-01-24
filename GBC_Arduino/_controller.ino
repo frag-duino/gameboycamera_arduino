@@ -57,7 +57,7 @@ void checkInputs() {
     return;
 
   if (state_button & NES_A)
-    take_photo = true;
+    save_photo = true;
 
   if (state_button & NES_B)
     take_photo = true;
