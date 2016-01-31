@@ -38,6 +38,7 @@ const int pin_xck = 9; // PH6 on Mega; PB1 on Uno
 const int pin_reset = 10;
 const int pin_load = 11;
 const int pin_sin = 12;
+const int pin_led_send = 5; // 100 Ohm + LED
 const int pin_led_exposure = 13; // Build in
 const int pin_analog_random = A4;
 const int pin_nes_strobe = A1; // Yellow
@@ -58,6 +59,7 @@ const int offset_column = 0;
 const unsigned long INTERVAL_READY = 500;
 const boolean MEASURE_TIME = false;
 const boolean ENABLE_DISPLAY = false;
+const int BRIGHTNESS_LED = 10;
 
 /*
   Set the color depth:
@@ -122,7 +124,9 @@ void setup() {
   pinMode(pin_sin, OUTPUT);
   pinMode(pin_start, OUTPUT);
   pinMode(pin_led_exposure, OUTPUT);
+  pinMode(pin_led_send, OUTPUT);
   digitalWrite(pin_led_exposure, HIGH);
+  analogWrite(pin_led_send, BRIGHTNESS_LED);
   delay(500);
 
   // Initialize Prescaler for faster analog read:
@@ -137,6 +141,7 @@ void setup() {
 
   Serial.print("Initialized");
   digitalWrite(pin_led_exposure, LOW);
+  digitalWrite(pin_led_send, LOW);
 }
 
 void loop() {
@@ -245,10 +250,14 @@ void loop() {
 
     checkInputs();
 
-    if (take_photo && !save_photo) // Button A
+    if (take_photo && !save_photo){ // Button A
       Serial.write(BYTE_PHOTO_BEGIN_SHOW);
-    else if (take_photo && save_photo) // Button B
+      digitalWrite(pin_led_send, LOW);
+    }
+    else if (take_photo && save_photo) { // Button B
+      analogWrite(pin_led_send, BRIGHTNESS_LED);
       Serial.write(BYTE_PHOTO_BEGIN_SHOW_SAVE);
+    }
 
     if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
       for (int row = 0; row < 128; row++) {
@@ -335,6 +344,7 @@ void loop() {
     // Send end-bytes
     if (take_photo) {
       Serial.write(BYTE_PHOTO_END);
+      digitalWrite(pin_led_send, LOW);
       take_photo = true;
       save_photo = false;
     }
