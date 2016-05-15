@@ -1,26 +1,29 @@
 void checkInputs() {
+
+  // First check the pushbutton:
+  if (digitalRead(pin_pushButton) == LOW) {
+    save_photo = true;
+    return;
+  }
+
   // get the state from the buttons
   state_button = nintendo.buttons();
 
   // Check for enhanced mode:
-  if (state_button & NES_SELECT && state_button & NES_START && state_button & NES_A && state_button & NES_B){
+  if (state_button & NES_SELECT && state_button & NES_START && state_button & NES_A && state_button & NES_B) {
     enable_enhanced_mode = true;
     Serial.println("OK");
     return;
   }
 
-  // Switch resolution/colordepth:
+  // Switch Select (unused)
   if (enable_enhanced_mode && state_button & NES_SELECT) {
-    if (state_button & NES_START) { // 1
-      set_colordepth = COLORDEPTH_8BIT;
-      set_resolution = RESOLUTION_32PX;
-    } else if (state_button & NES_A) { // 2
-      set_colordepth = COLORDEPTH_8BIT;
-      set_resolution = RESOLUTION_128PX;
-    } else if (state_button & NES_B) { // 3
-      set_colordepth = COLORDEPTH_2BIT;
-      set_resolution = RESOLUTION_128PX;
-    }
+    if (state_button & NES_START) // 1
+      ;
+    else if (state_button & NES_A) // 2
+      ;
+    else if (state_button & NES_B) // 3
+      ;
     return;
   }
 
@@ -60,5 +63,5 @@ void checkInputs() {
     save_photo = true;
 
   if (state_button & NES_B)
-    take_photo = true;
+    save_photo = true;
 }

@@ -1,0 +1,5 @@
+GND: Green
+CLK: Blue
+Strobe: Black
+Data: Red
+VCC: Yellow

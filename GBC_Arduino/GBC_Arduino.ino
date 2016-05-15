@@ -21,8 +21,6 @@ const char TYPE_EDGE = 'E';
 const char TYPE_OFFSET = 'O';
 const char TYPE_Z = 'Z';
 
-const char COMMAND_COLORDEPTH = 'D';
-const char COMMAND_RESOLUTION = 'R';
 const char COMMAND_MODE = 'F';
 
 // Byte paddles:
@@ -31,27 +29,26 @@ const byte BYTE_PHOTO_BEGIN_SHOW_SAVE = B11001110; // 206
 const byte BYTE_PHOTO_END   = B00110011; // 51
 
 // Pins
-const int pin_vout = A3;
-const int pin_start = 7;
-const int pin_read = 8;
-const int pin_xck = 9; // PH6 on Mega; PB1 on Uno
-const int pin_reset = 10;
-const int pin_load = 11;
-const int pin_sin = 12;
-const int pin_led_send = 5; // 100 Ohm + LED
-const int pin_led_exposure = 13; // Build in
-const int pin_analog_random = A4;
-const int pin_nes_strobe = A1; // Yellow
-const int pin_nes_clock = A0;  // Blue
-const int pin_nes_data = A2;   // Brown
-// Pin nes 5V: Red
-// Pin nes GND: White
+const int pin_start = 2;
+const int pin_sin = 3;
+const int pin_load = 4;
+const int pin_reset = 5;
+const int pin_xck = 6; // 9=PH6 on Mega; PB1 on Uno
+const int pin_read = 7;
+const int pin_vout = A5;
+
+const int pin_led_send = 11;    // 100 Ohm + LED
+const int pin_led_exposure = 9; // 100 Ohm + LED
+const int pin_pushButton = A4;  // Only needed if no NES controller available
+const int pin_analog_random = A3; // Leave it empty
+
+const int pin_nes_clock = A0; 
+const int pin_nes_strobe = A1;
+const int pin_nes_data = A2; 
+// Pin nes 5V
+// Pin nes GND
 
 // Constants
-const int COLORDEPTH_8BIT = 8;
-const int COLORDEPTH_2BIT = 2;
-const int RESOLUTION_128PX = 1;
-const int RESOLUTION_32PX = 3;
 const int MODE_REGULAR = 0;
 const int MODE_TEST = 1;
 const int offset_row = 0;
@@ -61,18 +58,7 @@ const boolean MEASURE_TIME = false;
 const boolean ENABLE_DISPLAY = false;
 const int BRIGHTNESS_LED = 10;
 
-/*
-  Set the color depth:
-  4  --> 8 Bit (0-255) maximum depth
-  64 --> 2 Bit (0-3)  like a Gameboy
-  Length:
-  2Bit, 128px: 128*32 = 4096 Bytes
-  8Bit, 128px: 128*128 = 16384 Bytes
-  8Bit, 32px: 32*32 = 1024 Bytes
-  2Bit, 32px: not supported
-*/
-int set_colordepth = COLORDEPTH_2BIT;
-int set_resolution = RESOLUTION_128PX;
+// Set regular or test-mode
 int set_mode = MODE_REGULAR;
 
 // Registers from datasheet
@@ -127,6 +113,8 @@ void setup() {
   pinMode(pin_led_send, OUTPUT);
   digitalWrite(pin_led_exposure, HIGH);
   analogWrite(pin_led_send, BRIGHTNESS_LED);
+  pinMode(pin_pushButton, INPUT);
+  digitalWrite(pin_pushButton, HIGH); // Pullup the input
   delay(500);
 
   // Initialize Prescaler for faster analog read:
@@ -196,10 +184,6 @@ void loop() {
             set_z = value;
           else if (command == COMMAND_MODE)
             set_mode = value;
-          else if (command == COMMAND_COLORDEPTH)
-            set_colordepth = value;
-          else if (command == COMMAND_RESOLUTION)
-            set_resolution = value;
           else
             Serial.print("U");
         }
@@ -250,90 +234,47 @@ void loop() {
 
     checkInputs();
 
-    if (take_photo && !save_photo){ // Button A
+    if (take_photo && !save_photo) {
       Serial.write(BYTE_PHOTO_BEGIN_SHOW);
       digitalWrite(pin_led_send, LOW);
     }
-    else if (take_photo && save_photo) { // Button B
+    else if (take_photo && save_photo) { // Button pressed
       analogWrite(pin_led_send, BRIGHTNESS_LED);
       Serial.write(BYTE_PHOTO_BEGIN_SHOW_SAVE);
     }
 
-    if (set_colordepth == COLORDEPTH_2BIT && set_resolution == RESOLUTION_128PX) { // 2Bit, 128x128
-      for (int row = 0; row < 128; row++) {
-        for (int column = 0; column < 32; column++) {
-          for (int pixel = 0; pixel < 4; pixel++) {
-
-            if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-              temp = analogRead(pin_vout) / 4; // --> make it a 8 Bit value (0-1024 --> 0-255)
-            else // Testmode
-              temp = getNextValue(); // Returns a 8 Bit value (0-255)
-
-            // Reduce bitness to 2 Bit (0-3)
-            if (temp < 64) temp = 0;
-            else if (temp < 128) temp = 1;
-            else if (temp < 192) temp = 2;
-            else temp = 3;
-
-            // And put it in the output byte
-            if (pixel == 0)
-              outBuffer[column] = temp; // 000000xx
-            else
-              outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
-
-            xckLOWtoHIGH(); // Clock to get the next pixel
-          }
-
-          // Prevent to be mistaken with end or beginning
-          if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE || outBuffer[column] == BYTE_PHOTO_END)
-            outBuffer[column]++;
-        }
-
-        // Send complete row to serial:
-        if (take_photo)
-          Serial.write(outBuffer, 32); // Send complete buffer
-      }
-    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_32PX) { // 8Bit, 32x32
-      for (int row = 0; row < 32; row++) {
-        for (int column = 0; column < 32; column++) {
+    for (int row = 0; row < 128; row++) {  // 2Bit, 128x128
+      for (int column = 0; column < 32; column++) {
+        for (int pixel = 0; pixel < 4; pixel++) {
 
           if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-            outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
+            temp = analogRead(pin_vout) / 4; // --> make it a 8 Bit value (0-1024 --> 0-255)
           else // Testmode
-            outBuffer[column] = getNextValue();
+            temp = getNextValue(); // Returns a 8 Bit value (0-255)
 
-          // Prevent to be mistaken with end or beginning
-          if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE ||  outBuffer[column] == BYTE_PHOTO_END)
-            outBuffer[column]++;
+          // Reduce bitness to 2 Bit (0-3)
+          if (temp < 64) temp = 0;
+          else if (temp < 128) temp = 1;
+          else if (temp < 192) temp = 2;
+          else temp = 3;
 
-          for (int i = 0; i < 4; i++) // 4times=128/4
-            xckLOWtoHIGH(); // Clock to get the next one
+          // And put it in the output byte
+          if (pixel == 0)
+            outBuffer[column] = temp; // 000000xx
+          else
+            outBuffer[column] = (outBuffer[column] << 2) | temp; // 0000xxyy
+
+          xckLOWtoHIGH(); // Clock to get the next pixel
         }
 
-        // Send row:
-        if (take_photo)
-          Serial.write(outBuffer, 32); // Send complete buffer
+        // Prevent to be mistaken with end or beginning
+        if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE || outBuffer[column] == BYTE_PHOTO_END)
+          outBuffer[column]++;
       }
-    } else if (set_colordepth == COLORDEPTH_8BIT && set_resolution == RESOLUTION_128PX) { // 8Bit, 128x128
-      for (int row = 0; row < 128; row++) {
-        for (int column = 0; column < 128; column++) {
 
-          if (set_mode == MODE_REGULAR) // Regular mode, read voltage
-            outBuffer[column] = analogRead(pin_vout) / 4; // 0-1024 --> 0-255
-          else // Test mode
-            outBuffer[column] = getNextValue();
-
-          // Prevent to be mistaken with end or beginning
-          if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE ||  outBuffer[column] == BYTE_PHOTO_END)
-            outBuffer[column]++;
-
-          xckLOWtoHIGH(); // Clock to get the next one
-        }
-
-        // Send row:
-        if (take_photo)
-          Serial.write(outBuffer, 128); // Send complete buffer
-      }
+      // Send complete row to serial:
+      if (take_photo)
+        Serial.write(outBuffer, 32); // Send complete buffer
     }
 
     setConfig();// Apply the current inputs to the config
