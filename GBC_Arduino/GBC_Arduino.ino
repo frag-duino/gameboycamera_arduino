@@ -20,33 +20,30 @@ const char TYPE_I = 'I';
 const char TYPE_EDGE = 'E';
 const char TYPE_OFFSET = 'O';
 const char TYPE_Z = 'Z';
-
-const char COMMAND_MODE = 'F';
+const char COMMAND_MODE = 'F'; // Regular or Test-mode
 
 // Byte paddles:
-const byte BYTE_PHOTO_BEGIN_SHOW = B11001100; // 204
-const byte BYTE_PHOTO_BEGIN_SHOW_SAVE = B11001110; // 206
-const byte BYTE_PHOTO_END   = B00110011; // 51
+const byte BYTE_PHOTO_BEGIN = B11001100; // dec 204
+const byte BYTE_PHOTO_END_SHOW   = B00110011; // dec 51
+const byte BYTE_PHOTO_END_SAVE = B11001110; // dec 206
 
 // Pins
 const int pin_start = 2;
 const int pin_sin = 3;
 const int pin_load = 4;
 const int pin_reset = 5;
-const int pin_xck = 6; // 9=PH6 on Mega; PB1 on Uno
+const int pin_xck = 6;   // Clock Arduino Pin
+#define CLOCK_PORT PORTD // Ping for port
+#define CLOCK_PIN PD6    // manipulation
 const int pin_read = 7;
 const int pin_vout = A5;
-
 const int pin_led_send = 11;    // 100 Ohm + LED
 const int pin_led_exposure = 9; // 100 Ohm + LED
 const int pin_pushButton = A4;  // Only needed if no NES controller available
 const int pin_analog_random = A3; // Leave it empty
-
-const int pin_nes_clock = A0; 
+const int pin_nes_clock = A0;
 const int pin_nes_strobe = A1;
-const int pin_nes_data = A2; 
-// Pin nes 5V
-// Pin nes GND
+const int pin_nes_data = A2;
 
 // Constants
 const int MODE_REGULAR = 0;
@@ -54,8 +51,6 @@ const int MODE_TEST = 1;
 const int offset_row = 0;
 const int offset_column = 0;
 const unsigned long INTERVAL_READY = 500;
-const boolean MEASURE_TIME = false;
-const boolean ENABLE_DISPLAY = false;
 const int BRIGHTNESS_LED = 10;
 
 // Set regular or test-mode
@@ -229,21 +224,18 @@ void loop() {
       xckHIGHTtoLOW();
     digitalWrite(pin_led_exposure, LOW);
 
-    if (MEASURE_TIME)
-      start = millis();
-
     checkInputs();
 
     if (take_photo && !save_photo) {
-      Serial.write(BYTE_PHOTO_BEGIN_SHOW);
+      Serial.write(BYTE_PHOTO_BEGIN);
       digitalWrite(pin_led_send, LOW);
     }
     else if (take_photo && save_photo) { // Button pressed
       analogWrite(pin_led_send, BRIGHTNESS_LED);
-      Serial.write(BYTE_PHOTO_BEGIN_SHOW_SAVE);
+      Serial.write(BYTE_PHOTO_BEGIN);
     }
 
-    for (int row = 0; row < 128; row++) {  // 2Bit, 128x128
+    for (int row = 0; row < 112; row++) {  // 2Bit, 128x112
       for (int column = 0; column < 32; column++) {
         for (int pixel = 0; pixel < 4; pixel++) {
 
@@ -268,8 +260,10 @@ void loop() {
         }
 
         // Prevent to be mistaken with end or beginning
-        if (outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW || outBuffer[column] == BYTE_PHOTO_BEGIN_SHOW_SAVE || outBuffer[column] == BYTE_PHOTO_END)
+        if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END_SHOW || outBuffer[column] == BYTE_PHOTO_END_SAVE)
           outBuffer[column]++;
+        if (!save_photo)
+          checkInputs();
       }
 
       // Send complete row to serial:
@@ -279,12 +273,13 @@ void loop() {
 
     setConfig();// Apply the current inputs to the config
 
-    if (MEASURE_TIME)
-      Serial.println(millis() - start);
-
     // Send end-bytes
     if (take_photo) {
-      Serial.write(BYTE_PHOTO_END);
+      if (save_photo)
+        Serial.write(BYTE_PHOTO_END_SAVE);
+      else
+        Serial.write(BYTE_PHOTO_END_SHOW);
+
       digitalWrite(pin_led_send, LOW);
       take_photo = true;
       save_photo = false;

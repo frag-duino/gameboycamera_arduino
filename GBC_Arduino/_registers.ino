@@ -153,13 +153,13 @@ void setReg( unsigned char adr, unsigned char data )
 
 // Send some clocks:
 void xckHIGHTtoLOW() { // Clock from High to Low
-  PORTD |= _BV(PD6); // Uno
-  PORTD &= ~_BV(PD6); // Uno
+  CLOCK_PORT |= _BV(CLOCK_PIN); // High
+  CLOCK_PORT &= ~_BV(CLOCK_PIN); // Low
 }
 
 void xckLOWtoHIGH() { // Clock from Low to High
-  PORTD &= ~_BV(PD6); // Uno
-  PORTD |= _BV(PD6); // Uno
+  CLOCK_PORT &= ~_BV(CLOCK_PIN); // Low
+  CLOCK_PORT |= _BV(CLOCK_PIN); // High
 }
 
 // Returns a pseudo-random value
