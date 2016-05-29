@@ -37,7 +37,7 @@ const int pin_xck = 6;   // Clock Arduino Pin
 #define CLOCK_PIN PD6    // manipulation
 const int pin_read = 7;
 const int pin_vout = A5;
-const int pin_led_send = 11;    // 100 Ohm + LED
+const int pin_led_save = 11;    // 100 Ohm + LED
 const int pin_led_exposure = 9; // 100 Ohm + LED
 const int pin_pushButton = A4;  // Only needed if no NES controller available
 const int pin_analog_random = A3; // Leave it empty
@@ -80,7 +80,6 @@ byte outBuffer[128];
 byte temp;
 char c;
 String input, tempString;
-boolean take_photo = true;
 boolean save_photo = false;
 boolean receiving_commands = false;
 byte state_button;
@@ -105,9 +104,9 @@ void setup() {
   pinMode(pin_sin, OUTPUT);
   pinMode(pin_start, OUTPUT);
   pinMode(pin_led_exposure, OUTPUT);
-  pinMode(pin_led_send, OUTPUT);
+  pinMode(pin_led_save, OUTPUT);
   digitalWrite(pin_led_exposure, HIGH);
-  analogWrite(pin_led_send, BRIGHTNESS_LED);
+  analogWrite(pin_led_save, BRIGHTNESS_LED);
   pinMode(pin_pushButton, INPUT);
   digitalWrite(pin_pushButton, HIGH); // Pullup the input
   delay(500);
@@ -124,7 +123,7 @@ void setup() {
 
   Serial.print("Initialized");
   digitalWrite(pin_led_exposure, LOW);
-  digitalWrite(pin_led_send, LOW);
+  digitalWrite(pin_led_save, LOW);
 }
 
 void loop() {
@@ -189,6 +188,7 @@ void loop() {
   }
 
   if (!receiving_commands) { // Smile, taking a photo :)
+    setConfig();
 
     // Reset camera
     // Serial.println("Reset camera:");
@@ -211,29 +211,23 @@ void loop() {
 
     // Starting the camera:
     // Serial.println("Starting camera");
-    digitalWrite(pin_led_exposure, HIGH);
+    digitalWrite(pin_led_exposure, HIGH); // Exposure LED on
     xckHIGHTtoLOW();
     digitalWrite(pin_start, HIGH); // Start High -> Kamerastart
     digitalWrite(pin_xck, HIGH);
     digitalWrite(pin_start, LOW); // Start L
     xckHIGHTtoLOW();
-
     // Wait until the images comes:
     // Serial.println("Waiting for image:");
     while (digitalRead(pin_read) == LOW)  // READ signal
       xckHIGHTtoLOW();
-    digitalWrite(pin_led_exposure, LOW);
+    digitalWrite(pin_led_exposure, LOW); // Exposure LED off
 
-    checkInputs();
+    // begin sending photo to the client
+    Serial.write(BYTE_PHOTO_BEGIN);
+    digitalWrite(pin_led_save, LOW);
 
-    if (take_photo && !save_photo) {
-      Serial.write(BYTE_PHOTO_BEGIN);
-      digitalWrite(pin_led_send, LOW);
-    }
-    else if (take_photo && save_photo) { // Button pressed
-      analogWrite(pin_led_send, BRIGHTNESS_LED);
-      Serial.write(BYTE_PHOTO_BEGIN);
-    }
+    checkInputs(); // Check the controller/button
 
     for (int row = 0; row < 112; row++) {  // 2Bit, 128x112
       for (int column = 0; column < 32; column++) {
@@ -242,7 +236,7 @@ void loop() {
           if (set_mode == MODE_REGULAR) // Regular mode, read voltage
             temp = analogRead(pin_vout) / 4; // --> make it a 8 Bit value (0-1024 --> 0-255)
           else // Testmode
-            temp = getNextValue(); // Returns a 8 Bit value (0-255)
+            temp = getNextValue(); // Returns a random 8Bit value (0-255)
 
           // Reduce bitness to 2 Bit (0-3)
           if (temp < 64) temp = 0;
@@ -262,27 +256,22 @@ void loop() {
         // Prevent to be mistaken with end or beginning
         if (outBuffer[column] == BYTE_PHOTO_BEGIN || outBuffer[column] == BYTE_PHOTO_END_SHOW || outBuffer[column] == BYTE_PHOTO_END_SAVE)
           outBuffer[column]++;
-        if (!save_photo)
-          checkInputs();
       }
 
-      // Send complete row to serial:
-      if (take_photo)
-        Serial.write(outBuffer, 32); // Send complete buffer
-    }
+      if (!save_photo && row % 8 == 0) // Every eight row
+        checkInputs();
 
-    setConfig();// Apply the current inputs to the config
+      // Send complete row to the client:
+      Serial.write(outBuffer, 32); // Send complete buffer
+    }
 
     // Send end-bytes
-    if (take_photo) {
-      if (save_photo)
-        Serial.write(BYTE_PHOTO_END_SAVE);
-      else
-        Serial.write(BYTE_PHOTO_END_SHOW);
+    if (save_photo)
+      Serial.write(BYTE_PHOTO_END_SAVE);
+    else
+      Serial.write(BYTE_PHOTO_END_SHOW);
 
-      digitalWrite(pin_led_send, LOW);
-      take_photo = true;
-      save_photo = false;
-    }
+    digitalWrite(pin_led_save, LOW);
+    save_photo = false;
   }
 }
