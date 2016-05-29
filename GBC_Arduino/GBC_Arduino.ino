@@ -92,7 +92,7 @@ byte value;
 void setup() {
   // Initialize Serial
   Serial.begin(115200);
-
+  
   setConfig(); // Set the config
   randomSeed(analogRead(pin_analog_random));
 
@@ -271,6 +271,7 @@ void loop() {
     else
       Serial.write(BYTE_PHOTO_END_SHOW);
 
+    Serial.flush();
     digitalWrite(pin_led_save, LOW);
     save_photo = false;
   }
